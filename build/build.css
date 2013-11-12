@@ -1,0 +1,13 @@
+.box {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: red;
+  padding: 30px;
+  background-color: #eeeeee; }
+
+.cube {
+  color: blue;
+  padding: 30px;
+  background-color: #eedddd; }
+
+body {
+  font-family: "Helvetica Neue", Arial, sans-serif; }

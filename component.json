@@ -1,0 +1,11 @@
+{
+    "name": "test",
+    "main": "src/app.js",
+    "scripts": ["src/app.js"],
+    "styles": ["src/app.sass"],
+    "paths": ["components", "src"],
+    "local": ["box", "cube"],
+    "dependencies": {
+        "yyx990803/seed": "*"
+    }
+}

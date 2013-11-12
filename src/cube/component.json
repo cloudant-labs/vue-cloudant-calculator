@@ -1,0 +1,6 @@
+{
+    "name": "cube",
+    "scripts": ["index.js"],
+    "styles": ["style.sass"],
+    "templates": ["template.html"]
+}
