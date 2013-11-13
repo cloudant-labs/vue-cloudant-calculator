@@ -1,27 +1,22 @@
 {
     "name": "test",
     "main": "src/main.js",
-
     "scripts": [
         "src/main.js",
         "src/directives/flip.js",
         "src/filters/reverse.js"
     ],
-
     "styles": [
         "src/global.sass"
     ],
-
     "paths": [
         "components",
         "src/components"
     ],
-
     "local": [
         "a",
         "b"
     ],
-    
     "dependencies": {
         "yyx990803/seed": "*"
     }

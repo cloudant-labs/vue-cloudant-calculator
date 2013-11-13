@@ -2967,7 +2967,7 @@ var Seed = require('seed')
 })
 
 // load components
-;['box', 'cube'].forEach(function (id) {
+;['a', 'b'].forEach(function (id) {
     Seed.viewmodel(id, Seed.extend(require(id)))
 })
 
@@ -3022,11 +3022,11 @@ require.alias("component-emitter/index.js", "yyx990803-seed/deps/emitter/index.j
 require.alias("component-indexof/index.js", "component-emitter/deps/indexof/index.js");
 
 require.alias("yyx990803-seed/src/main.js", "yyx990803-seed/index.js");
-require.alias("a/index.js", "test/deps/box/index.js");
-require.alias("a/index.js", "box/index.js");
+require.alias("a/index.js", "test/deps/a/index.js");
+require.alias("a/index.js", "a/index.js");
 
-require.alias("b/index.js", "test/deps/cube/index.js");
-require.alias("b/index.js", "cube/index.js");
+require.alias("b/index.js", "test/deps/b/index.js");
+require.alias("b/index.js", "b/index.js");
 
 require.alias("test/src/main.js", "test/index.js");if (typeof exports == "object") {
   module.exports = require("test");

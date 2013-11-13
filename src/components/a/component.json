@@ -1,5 +1,5 @@
 {
-    "name": "box",
+    "name": "a",
     "scripts": ["index.js"],
     "styles": ["style.sass"],
     "templates": ["template.html"]

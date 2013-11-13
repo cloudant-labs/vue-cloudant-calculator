@@ -12,12 +12,12 @@ Finely-modularized front end development with lightweight footprint.
 ``` bash
 # in case you don't have them yet:
 # npm install -g grunt-cli component
-npm install
-component install
-grunt watch
+$ grunt dev
 # you are ready to rock!
 ```
 
-## TODO
+## Make a new component
 
-Write a yeoman generator for this with a sub-generator for creating components.
+``` bash
+$ grunt new:my-component
+```

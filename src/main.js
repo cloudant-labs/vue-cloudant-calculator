@@ -11,7 +11,7 @@ var Seed = require('seed')
 })
 
 // load components
-;['box', 'cube'].forEach(function (id) {
+;['a', 'b'].forEach(function (id) {
     Seed.viewmodel(id, Seed.extend(require(id)))
 })
 
