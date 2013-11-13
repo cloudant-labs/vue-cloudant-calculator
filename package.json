@@ -2,7 +2,7 @@
   "name": "seed-architecture",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sindresorhus/grunt-shell"
+    "url": "https://github.com/yyx990803/seed-architecture-example"
   },
   "devDependencies": {
     "component-sass": "git://github.com/segmentio/component-sass",
