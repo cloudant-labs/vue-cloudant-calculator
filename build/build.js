@@ -2943,19 +2943,21 @@ module.exports = {
 });
 require.register("a/index.js", function(exports, require, module){
 module.exports = {
+    className: 'a box',
     template: require('./template.html')
 }
 });
 require.register("b/index.js", function(exports, require, module){
 module.exports = {
+    className: 'b box',
     template: require('./template.html')
 }
 });
-require.register("test/src/app.js", function(exports, require, module){
+require.register("test/src/main.js", function(exports, require, module){
 var Seed = require('seed')
 
 // load directives
-;['bg'].forEach(function (id) {
+;['flip'].forEach(function (id) {
     Seed.directive(id, require('./directives/' + id))
 })
 
@@ -2973,14 +2975,14 @@ var app = new Seed({
     el: 'body',
     scope: {
         msg: 'hello',
-        value: 'this should be reversed',
-        bgColor: '#eef'
+        value: 'this should be reversed and flipped',
+        bgColor: '#f3f3f3'
     }
 })
 });
-require.register("test/src/directives/bg.js", function(exports, require, module){
-module.exports = function (value) {
-    this.el.style.backgroundColor = value
+require.register("test/src/directives/flip.js", function(exports, require, module){
+module.exports = function () {
+    this.el.style.webkitTransform = 'scaleX(-1)'
 }
 });
 require.register("test/src/filters/reverse.js", function(exports, require, module){
@@ -2990,10 +2992,10 @@ module.exports = function (value) {
 });
 
 require.register("a/template.html", function(exports, require, module){
-module.exports = '<div class="box">{{msg + " I\'m component A!"}}</div>';
+module.exports = '<div>{{msg + " I\'m component A"}}</div>';
 });
 require.register("b/template.html", function(exports, require, module){
-module.exports = '<div class="cube">{{msg + " I am component B!"}}</div>';
+module.exports = '<div>{{msg + " I am component B"}}</div>';
 });
 require.alias("yyx990803-seed/src/main.js", "test/deps/seed/src/main.js");
 require.alias("yyx990803-seed/src/emitter.js", "test/deps/seed/src/emitter.js");
@@ -3026,7 +3028,7 @@ require.alias("a/index.js", "box/index.js");
 require.alias("b/index.js", "test/deps/cube/index.js");
 require.alias("b/index.js", "cube/index.js");
 
-require.alias("test/src/app.js", "test/index.js");if (typeof exports == "object") {
+require.alias("test/src/main.js", "test/index.js");if (typeof exports == "object") {
   module.exports = require("test");
 } else if (typeof define == "function" && define.amd) {
   define(function(){ return require("test"); });

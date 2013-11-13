@@ -1,15 +1,15 @@
 {
     "name": "test",
-    "main": "src/app.js",
+    "main": "src/main.js",
 
     "scripts": [
-        "src/app.js",
-        "src/directives/bg.js",
+        "src/main.js",
+        "src/directives/flip.js",
         "src/filters/reverse.js"
     ],
 
     "styles": [
-        "src/app.sass"
+        "src/global.sass"
     ],
 
     "paths": [

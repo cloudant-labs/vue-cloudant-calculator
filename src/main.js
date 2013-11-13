@@ -1,7 +1,7 @@
 var Seed = require('seed')
 
 // load directives
-;['bg'].forEach(function (id) {
+;['flip'].forEach(function (id) {
     Seed.directive(id, require('./directives/' + id))
 })
 
@@ -19,7 +19,7 @@ var app = new Seed({
     el: 'body',
     scope: {
         msg: 'hello',
-        value: 'this should be reversed',
-        bgColor: '#eef'
+        value: 'this should be reversed and flipped',
+        bgColor: '#f3f3f3'
     }
 })

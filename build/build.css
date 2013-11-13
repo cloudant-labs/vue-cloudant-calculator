@@ -1,17 +1,29 @@
-.box {
+.box.a {
   font-family: "Helvetica Neue", Arial, sans-serif;
-  color: red;
-  padding: 30px;
-  background-color: #eeeeee; }
+  font-weight: bold; }
 
-.cube {
-  color: blue;
-  padding: 30px;
-  background-color: #eedddd; }
+.box.b {
+  font-family: "Adobe Garamond Pro", Georgia, serif;
+  font-style: italic;
+  font-size: 25px; }
 
 body {
-  font-family: "Helvetica Neue", Arial, sans-serif; }
+  font-family: "Courier New", monospace;
+  text-align: center;
+  width: 800px;
+  margin: 0 auto;
+  font-size: 22px; }
 
 p {
-  padding: 30px;
-  margin: 0; }
+  padding: 50px 0 30px;
+  margin: 0;
+  text-transform: uppercase; }
+
+.box {
+  display: inline-block;
+  vertical-align: top;
+  width: 320px;
+  height: 320px;
+  margin: 20px;
+  border: 5px solid black;
+  line-height: 320px; }
