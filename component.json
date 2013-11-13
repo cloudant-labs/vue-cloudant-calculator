@@ -1,10 +1,27 @@
 {
     "name": "test",
     "main": "src/app.js",
-    "scripts": ["src/app.js"],
-    "styles": ["src/app.sass"],
-    "paths": ["components", "src"],
-    "local": ["box", "cube"],
+
+    "scripts": [
+        "src/app.js",
+        "src/directives/bg.js",
+        "src/filters/reverse.js"
+    ],
+
+    "styles": [
+        "src/app.sass"
+    ],
+
+    "paths": [
+        "components",
+        "src/components"
+    ],
+
+    "local": [
+        "a",
+        "b"
+    ],
+    
     "dependencies": {
         "yyx990803/seed": "*"
     }

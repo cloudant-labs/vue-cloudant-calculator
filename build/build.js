@@ -2941,42 +2941,59 @@ module.exports = {
     }
 }
 });
-require.register("box/index.js", function(exports, require, module){
+require.register("a/index.js", function(exports, require, module){
 module.exports = {
     template: require('./template.html')
 }
 });
-require.register("cube/index.js", function(exports, require, module){
+require.register("b/index.js", function(exports, require, module){
 module.exports = {
     template: require('./template.html')
 }
 });
 require.register("test/src/app.js", function(exports, require, module){
-var Seed = require('seed'),
-    Box  = Seed.extend(require('box')),
-    Cube = Seed.extend(require('cube'))
+var Seed = require('seed')
+
+// load directives
+;['bg'].forEach(function (id) {
+    Seed.directive(id, require('./directives/' + id))
+})
+
+// load filters
+;['reverse'].forEach(function (id) {
+    Seed.filter(id, require('./filters/' + id))
+})
+
+// load components
+;['box', 'cube'].forEach(function (id) {
+    Seed.viewmodel(id, Seed.extend(require(id)))
+})
 
 var app = new Seed({
-
     el: 'body',
-
-    viewmodels: {
-        box: Box,
-        cube: Cube
-    },
-
     scope: {
-        msg: 'hello'
+        msg: 'hello',
+        value: 'this should be reversed',
+        bgColor: '#eef'
     }
-    
 })
 });
-
-require.register("box/template.html", function(exports, require, module){
-module.exports = '<div class="box">{{msg + \' box!\'}}</div>';
+require.register("test/src/directives/bg.js", function(exports, require, module){
+module.exports = function (value) {
+    this.el.style.backgroundColor = value
+}
 });
-require.register("cube/template.html", function(exports, require, module){
-module.exports = '<div class="cube">{{msg + \' cube!\'}}</div>';
+require.register("test/src/filters/reverse.js", function(exports, require, module){
+module.exports = function (value) {
+    return value.toString().split('').reverse().join('')
+}
+});
+
+require.register("a/template.html", function(exports, require, module){
+module.exports = '<div class="box">{{msg + " I\'m component A!"}}</div>';
+});
+require.register("b/template.html", function(exports, require, module){
+module.exports = '<div class="cube">{{msg + " I am component B!"}}</div>';
 });
 require.alias("yyx990803-seed/src/main.js", "test/deps/seed/src/main.js");
 require.alias("yyx990803-seed/src/emitter.js", "test/deps/seed/src/emitter.js");
@@ -3003,11 +3020,11 @@ require.alias("component-emitter/index.js", "yyx990803-seed/deps/emitter/index.j
 require.alias("component-indexof/index.js", "component-emitter/deps/indexof/index.js");
 
 require.alias("yyx990803-seed/src/main.js", "yyx990803-seed/index.js");
-require.alias("box/index.js", "test/deps/box/index.js");
-require.alias("box/index.js", "box/index.js");
+require.alias("a/index.js", "test/deps/box/index.js");
+require.alias("a/index.js", "box/index.js");
 
-require.alias("cube/index.js", "test/deps/cube/index.js");
-require.alias("cube/index.js", "cube/index.js");
+require.alias("b/index.js", "test/deps/cube/index.js");
+require.alias("b/index.js", "cube/index.js");
 
 require.alias("test/src/app.js", "test/index.js");if (typeof exports == "object") {
   module.exports = require("test");
