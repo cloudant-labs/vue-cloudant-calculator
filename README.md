@@ -1,10 +1,11 @@
-# Seed.js Architecture Example
+# Seed.js Architecture + Workflow Example
 
+- Grunt
 - Component
 - SASS
 - Seed.js
 
-Finely-modularized front end development with extremely light footprint. (10kb gzipped lib size)
+Finely-modularized front end development with lightweight footprint.
 
 ## Getting Started
 
@@ -14,6 +15,7 @@ Finely-modularized front end development with extremely light footprint. (10kb g
 npm install
 component install
 grunt watch
+# you are ready to rock!
 ```
 
 ## TODO

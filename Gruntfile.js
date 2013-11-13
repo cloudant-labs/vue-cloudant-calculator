@@ -18,6 +18,9 @@ module.exports = function( grunt ) {
         },
 
         watch: {
+            options: {
+                livereload: true
+            },
             dev: {
                 files: ['src/**/*', 'component.json'],
                 tasks: ['componentbuild']
