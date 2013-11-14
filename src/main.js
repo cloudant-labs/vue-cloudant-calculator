@@ -1,18 +1,16 @@
 var Seed = require('seed')
 
-// load directives
-;['flip'].forEach(function (id) {
-    Seed.directive(id, require('./directives/' + id))
-})
-
-// load filters
-;['reverse'].forEach(function (id) {
-    Seed.filter(id, require('./filters/' + id))
-})
-
-// load components
-;['a', 'b'].forEach(function (id) {
-    Seed.viewmodel(id, Seed.extend(require(id)))
+config({
+    directives: [
+        'flip'
+    ],
+    filters: [
+        'reverse'
+    ],
+    components: [
+        'a',
+        'b'
+    ]
 })
 
 var app = new Seed({
@@ -23,3 +21,17 @@ var app = new Seed({
         bgColor: '#f3f3f3'
     }
 })
+
+function config (conf) {
+    for (var type in conf) {
+        conf[type].forEach(function (id) {
+            var method = type.slice(0, -1),
+                value = require(
+                    type === 'components'
+                    ? id
+                    : './' + type + '/' + id
+                )
+            Seed[method](id, value)
+        })
+    }
+}

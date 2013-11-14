@@ -415,9 +415,11 @@ ViewModel.filter = function (id, fn) {
 /**
  *  Allows user to register/retrieve a ViewModel constructor
  */
-ViewModel.viewmodel = function (id, Ctor) {
-    if (!Ctor) return utils.viewmodels[id]
-    utils.viewmodels[id] = Ctor
+ViewModel.component = function (id, Ctor) {
+    if (!Ctor) return utils.components[id]
+    utils.components[id] = Ctor.prototype instanceof ViewModel
+        ? Ctor
+        : ViewModel.extend(Ctor)
     return this
 }
 
@@ -510,7 +512,7 @@ function inheritOptions (child, parent, topLevel) {
 function updatePrefix () {
     var prefix = config.prefix
     config.idAttr         = prefix + '-id'
-    config.vmAttr         = prefix + '-viewmodel'
+    config.vmAttr         = prefix + '-component'
     config.preAttr        = prefix + '-pre'
     config.textAttr       = prefix + '-text'
     config.repeatAttr     = prefix + '-repeat'
@@ -564,7 +566,7 @@ var utils = module.exports = {
 
     // global storage for user-registered
     // vms, partials and transitions
-    viewmodels  : makeHash(),
+    components  : makeHash(),
     partials    : makeHash(),
     transitions : makeHash(),
 
@@ -879,7 +881,7 @@ CompilerProto.compile = function (node, root) {
             transClass = node.getAttribute(config.transClassAttr)
 
         // we need to check for any possbile special directives
-        // e.g. sd-repeat, sd-viewmodel & sd-partial
+        // e.g. sd-repeat, sd-component & sd-partial
         if (repeatExp) { // repeat block
 
             // repeat block cannot have sd-id at the same time.
@@ -892,7 +894,7 @@ CompilerProto.compile = function (node, root) {
         } else if (vmId && !root) { // child ViewModels
 
             node.removeAttribute(config.vmAttr)
-            var ChildVM = compiler.getOption('viewmodels', vmId)
+            var ChildVM = compiler.getOption('components', vmId)
             if (ChildVM) {
                 var child = new ChildVM({
                     el: node,
@@ -2426,8 +2428,10 @@ module.exports = {
             if (this.lastVal) {
                 this.el.classList.remove(this.lastVal)
             }
-            this.el.classList.add(value)
-            this.lastVal = value
+            if (value) {
+                this.el.classList.add(value)
+                this.lastVal = value
+            }
         }
     },
 
@@ -2609,7 +2613,7 @@ module.exports = {
         ViewModel   = ViewModel || require('../viewmodel')
         var vmId    = el.getAttribute(config.vmAttr)
         if (vmId) el.removeAttribute(config.vmAttr)
-        self.ChildVM = self.compiler.getOption('viewmodels', vmId) || ViewModel
+        self.ChildVM = self.compiler.getOption('components', vmId) || ViewModel
 
         // extract transition information
         self.hasTransition = !!(
@@ -2956,19 +2960,17 @@ module.exports = {
 require.register("test/src/main.js", function(exports, require, module){
 var Seed = require('seed')
 
-// load directives
-;['flip'].forEach(function (id) {
-    Seed.directive(id, require('./directives/' + id))
-})
-
-// load filters
-;['reverse'].forEach(function (id) {
-    Seed.filter(id, require('./filters/' + id))
-})
-
-// load components
-;['a', 'b'].forEach(function (id) {
-    Seed.viewmodel(id, Seed.extend(require(id)))
+config({
+    directives: [
+        'flip'
+    ],
+    filters: [
+        'reverse'
+    ],
+    components: [
+        'a',
+        'b'
+    ]
 })
 
 var app = new Seed({
@@ -2979,6 +2981,20 @@ var app = new Seed({
         bgColor: '#f3f3f3'
     }
 })
+
+function config (conf) {
+    for (var type in conf) {
+        conf[type].forEach(function (id) {
+            var method = type.slice(0, -1),
+                value = require(
+                    type === 'components'
+                    ? id
+                    : './' + type + '/' + id
+                )
+            Seed[method](id, value)
+        })
+    }
+}
 });
 require.register("test/src/directives/flip.js", function(exports, require, module){
 module.exports = function () {
