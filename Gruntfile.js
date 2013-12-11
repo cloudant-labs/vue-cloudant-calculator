@@ -1,5 +1,5 @@
-var sass  = require('component-sass'),
-    fs    = require('fs')
+var stylus = require('component-stylus'),
+    fs     = require('fs')
 
 module.exports = function( grunt ) {
 
@@ -10,7 +10,7 @@ module.exports = function( grunt ) {
                 options: {
                     standalone: true,
                     configure: function (builder) {
-                        builder.use(sass)
+                        builder.use(stylus)
                     }
                 },
                 src: '.',
@@ -49,12 +49,12 @@ module.exports = function( grunt ) {
         var conf = {
             name: id,
             scripts: ['index.js'],
-            styles: ['style.sass'],
+            styles: ['style.styl'],
             templates: ['template.html']
         }
         fs.writeFileSync(path + '/component.json', JSON.stringify(conf, null, 4), 'utf-8')
         fs.writeFileSync(path + '/index.js', 'module.exports = {\n    template: require(\'./template.html\')\n}', 'utf-8')
-        fs.writeFileSync(path + '/style.sass', '', 'utf-8')
+        fs.writeFileSync(path + '/style.styl', '', 'utf-8')
         fs.writeFileSync(path + '/template.html', '', 'utf-8')
         var componentConf = require('./component.json')
         componentConf.local.push(id)

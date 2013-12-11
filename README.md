@@ -1,9 +1,9 @@
-# Seed.js Architecture + Workflow Example
+# VueJS Architecture + Workflow Example
 
 - Grunt
 - Component
-- SASS
-- Seed.js
+- Stylus
+- VueJS
 
 Finely-modularized front end development with lightweight footprint.
 

@@ -7,7 +7,8 @@
     "src/filters/reverse.js"
   ],
   "styles": [
-    "src/global.sass"
+    "src/styles/main.styl",
+    "src/styles/mixins.styl"
   ],
   "paths": [
     "components",
@@ -18,7 +19,7 @@
     "b"
   ],
   "dependencies": {
-    "yyx990803/seed": "dev"
+    "yyx990803/vue": "dev"
   },
   "remotes": []
 }

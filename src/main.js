@@ -1,4 +1,4 @@
-var Seed = require('seed')
+var Vue = require('vue')
 
 config({
     directives: [
@@ -13,7 +13,7 @@ config({
     ]
 })
 
-var app = new Seed({
+var app = new Vue({
     el: 'body',
     scope: {
         msg: 'hello',
@@ -31,7 +31,7 @@ function config (conf) {
                     ? id
                     : './' + type + '/' + id
                 )
-            Seed[method](id, value)
+            Vue[method](id, value)
         })
     }
 }
