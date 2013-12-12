@@ -1,5 +1,5 @@
 {
-  "name": "test",
+  "name": "vue-component-example",
   "main": "src/main.js",
   "scripts": [
     "src/main.js",

@@ -1,5 +1,5 @@
 {
-  "name": "vue-architecture",
+  "name": "vue-component-example",
   "devDependencies": {
     "grunt-component-build": "~0.4.1",
     "grunt-contrib-watch": "~0.5.3",
