@@ -1,6 +1,6 @@
-# VueJS Architecture + Workflow Example
+# Vue + Component Example
 
-A simple setup using [Gulp](http://gulpjs.com), [Component](http://github.com/component/component) & [Vue.js](http://vuejs.org) for modular UI development.
+A simple setup using [Gulp](http://gulpjs.com), [Component](http://github.com/component/component) together with [Vue.js](http://vuejs.org) for modular UI development.
 
 To make things more test friendly, the directives, filters and components simply export functions and definition objects without requiring Vue.js itself.
 
@@ -25,7 +25,7 @@ $ gulp
 
 Open `index.html` to see the result.
 
-## Development
+### Development
 
 ``` bash
 $ gulp watch
