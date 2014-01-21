@@ -1,6 +1,6 @@
 {
     "name": "a",
     "scripts": ["index.js"],
-    "styles": ["style.styl"],
+    "styles": ["style.css"],
     "templates": ["template.html"]
 }

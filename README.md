@@ -1,23 +1,34 @@
 # VueJS Architecture + Workflow Example
 
-- Grunt
-- Component
-- Stylus
-- VueJS
+A simple setup using [Gulp](http://gulpjs.com), [Component](http://github.com/component/component) & [Vue.js](http://vuejs.org) for modular UI development.
 
-Finely-modularized front end development with lightweight footprint.
+To make things more test friendly, the directives, filters and components simply export functions and definition objects without requiring Vue.js itself.
 
-## Getting Started
+What's more important is that the components in `src/components` are completely self-contained. They include their own CSS and templates, and can also include their private directives, filters and child components. If you put a component like this on GitHub you can easily reuse them in another Vue.js project with `component install`.
 
-``` bash
-# in case you don't have them yet:
-# npm install -g grunt-cli component
-$ grunt dev
-# you are ready to rock!
-```
+## Usage
 
-## Make a new component
+To get started, install Gulp and Component globally, then clone this repo and install local dependencies:
 
 ``` bash
-$ grunt new:my-component
+$ npm install -g grunt-cli component
+$ git clone https://github.com/vuejs/vue-component-example.git
+$ cd vue-component-example
+$ npm install && component install
 ```
+
+### Build
+
+``` bash
+$ gulp
+```
+
+Open `index.html` to see the result.
+
+## Development
+
+``` bash
+$ gulp watch
+```
+
+This will watch files for change and re-build automatically.

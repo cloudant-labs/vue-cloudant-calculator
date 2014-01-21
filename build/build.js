@@ -377,10 +377,15 @@ var config      = require('./config'),
 /**
  *  Set config options
  */
-ViewModel.config = function (opts) {
-    if (opts) {
+ViewModel.config = function (opts, val) {
+    if (typeof opts === 'string') {
+        if (val === undefined) {
+            return config[opts]
+        } else {
+            config[opts] = val
+        }
+    } else {
         utils.extend(config, opts)
-        if (opts.prefix) updatePrefix()
     }
     return this
 }
@@ -413,15 +418,6 @@ ViewModel.component = function (id, Ctor) {
 }
 
 /**
- *  Allows user to register/retrieve a Custom element constructor
- */
-ViewModel.element = function (id, Ctor) {
-    if (!Ctor) return utils.elements[id]
-    utils.elements[id] = utils.toConstructor(Ctor)
-    return this
-}
-
-/**
  *  Allows user to register/retrieve a template partial
  */
 ViewModel.partial = function (id, partial) {
@@ -440,6 +436,7 @@ ViewModel.transition = function (id, transition) {
 }
 
 ViewModel.extend = extend
+ViewModel.nextTick = utils.nextTick
 
 /**
  *  Expose the main ViewModel class
@@ -453,9 +450,11 @@ function extend (options) {
     options = inheritOptions(options, ParentVM.options, true)
     utils.processOptions(options)
 
-    var ExtendedVM = function (opts) {
-        opts = inheritOptions(opts, options, true)
-        ParentVM.call(this, opts)
+    var ExtendedVM = function (opts, asParent) {
+        if (!asParent) {
+            opts = inheritOptions(opts, options, true)
+        }
+        ParentVM.call(this, opts, true)
     }
 
     // inherit prototype props
@@ -463,11 +462,14 @@ function extend (options) {
     utils.defProtected(proto, 'constructor', ExtendedVM)
 
     // copy prototype props
-    var protoMixins = options.proto
-    if (protoMixins) {
-        for (var key in protoMixins) {
-            if (!(key in ViewModel.prototype)) {
-                proto[key] = protoMixins[key]
+    var methods = options.methods
+    if (methods) {
+        for (var key in methods) {
+            if (
+                !(key in ViewModel.prototype) &&
+                typeof methods[key] === 'function'
+            ) {
+                proto[key] = methods[key]
             }
         }
     }
@@ -482,7 +484,7 @@ function extend (options) {
 /**
  *  Inherit options
  *
- *  For options such as `scope`, `vms`, `directives`, 'partials',
+ *  For options such as `data`, `vms`, `directives`, 'partials',
  *  they should be further extended. However extending should only
  *  be done at top level.
  *  
@@ -496,39 +498,35 @@ function inheritOptions (child, parent, topLevel) {
     child = child || utils.hash()
     if (!parent) return child
     for (var key in parent) {
-        if (key === 'el' || key === 'proto') continue
-        if (!child[key]) { // child has priority
-            child[key] = parent[key]
-        } else if (topLevel && utils.typeOf(child[key]) === 'Object') {
-            inheritOptions(child[key], parent[key], false)
+        if (key === 'el' || key === 'methods') continue
+        var val = child[key],
+            parentVal = parent[key],
+            type = utils.typeOf(val)
+        if (topLevel && type === 'Function' && parentVal) {
+            // merge hook functions
+            child[key] = mergeHook(val, parentVal)
+        } else if (topLevel && type === 'Object') {
+            // merge toplevel object options
+            inheritOptions(val, parentVal)
+        } else if (val === undefined) {
+            // inherit if child doesn't override
+            child[key] = parentVal
         }
     }
     return child
 }
 
 /**
- *  Update prefix for some special directives
- *  that are used in compilation.
+ *  Merge hook functions
+ *  so parent hooks also get called
  */
-var specialAttributes = [
-    'id',
-    'pre',
-    'text',
-    'repeat',
-    'partial',
-    'component',
-    'transition'
-]
-
-function updatePrefix () {
-    specialAttributes.forEach(setPrefix)
+function mergeHook (fn, parentFn) {
+    return function (opts) {
+        parentFn.call(this, opts)
+        fn.call(this, opts)
+    }
 }
 
-function setPrefix (attr) {
-    config.attrs[attr] = config.prefix + '-' + attr
-}
-
-updatePrefix()
 module.exports = ViewModel
 });
 require.register("yyx990803-vue/src/emitter.js", function(exports, require, module){
@@ -554,16 +552,43 @@ try {
 module.exports = Emitter
 });
 require.register("yyx990803-vue/src/config.js", function(exports, require, module){
-module.exports = {
+var prefix = 'v',
+    specialAttributes = [
+        'pre',
+        'text',
+        'repeat',
+        'partial',
+        'with',
+        'component',
+        'component-id',
+        'transition'
+    ],
+    config = module.exports = {
 
-    prefix      : 'v',
-    debug       : false,
-    silent      : false,
-    enterClass  : 'v-enter',
-    leaveClass  : 'v-leave',
-    attrs       : {}
-    
+        async       : true,
+        debug       : false,
+        silent      : false,
+        enterClass  : 'v-enter',
+        leaveClass  : 'v-leave',
+        attrs       : {},
+
+        get prefix () {
+            return prefix
+        },
+        set prefix (val) {
+            prefix = val
+            updatePrefix()
+        }
+        
+    }
+
+function updatePrefix () {
+    specialAttributes.forEach(function (attr) {
+        config.attrs[attr] = prefix + '-' + attr
+    })
 }
+
+updatePrefix()
 });
 require.register("yyx990803-vue/src/utils.js", function(exports, require, module){
 var config    = require('./config'),
@@ -572,6 +597,11 @@ var config    = require('./config'),
     join      = Array.prototype.join,
     console   = window.console,
     ViewModel // late def
+
+var defer =
+    window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    window.setTimeout
 
 /**
  *  Create a prototype-less object
@@ -590,7 +620,6 @@ var utils = module.exports = {
     components  : makeHash(),
     partials    : makeHash(),
     transitions : makeHash(),
-    elements    : makeHash(),
 
     /**
      *  get an attribute and remove it.
@@ -709,11 +738,6 @@ var utils = module.exports = {
                 : null
     },
 
-    isConstructor: function (obj) {
-        ViewModel = ViewModel || require('./viewmodel')
-        return obj.prototype instanceof ViewModel || obj === ViewModel
-    },
-
     /**
      *  convert certain option values to the desired format.
      */
@@ -721,16 +745,10 @@ var utils = module.exports = {
         var components = options.components,
             partials   = options.partials,
             template   = options.template,
-            elements   = options.elements,
             key
         if (components) {
             for (key in components) {
                 components[key] = utils.toConstructor(components[key])
-            }
-        }
-        if (elements) {
-            for (key in elements) {
-                elements[key] = utils.toConstructor(elements[key])
             }
         }
         if (partials) {
@@ -753,13 +771,23 @@ var utils = module.exports = {
     },
     
     /**
-     *  warnings, thrown in all cases
+     *  warnings, traces by default
+     *  can be suppressed by `silent` option.
      */
     warn: function() {
         if (!config.silent && console) {
-            console.trace()
             console.warn(join.call(arguments, ' '))
+            if (config.debug) {
+                console.trace()
+            }
         }
+    },
+
+    /**
+     *  used to defer batch updates
+     */
+    nextTick: function (cb) {
+        defer(cb, 0)
     }
 }
 });
@@ -773,13 +801,13 @@ var Emitter     = require('./emitter'),
     TextParser  = require('./text-parser'),
     DepsParser  = require('./deps-parser'),
     ExpParser   = require('./exp-parser'),
-    transition  = require('./transition'),
     // cache deps ob
     depsOb      = DepsParser.observer,
     // cache methods
     slice       = Array.prototype.slice,
     log         = utils.log,
     makeHash    = utils.hash,
+    extend      = utils.extend,
     def         = utils.defProtected,
     hasOwn      = Object.prototype.hasOwnProperty
 
@@ -790,43 +818,33 @@ var Emitter     = require('./emitter'),
 function Compiler (vm, options) {
 
     var compiler = this
-
     // indicate that we are intiating this instance
     // so we should not run any transitions
     compiler.init = true
 
-    // extend options
+    // process and extend options
     options = compiler.options = options || makeHash()
     utils.processOptions(options)
-    utils.extend(compiler, options.compilerOptions)
+
+    // copy data, methods & compiler options
+    var data = compiler.data = options.data || {}
+    extend(vm, data, true)
+    extend(vm, options.methods, true)
+    extend(compiler, options.compilerOptions)
 
     // initialize element
     var el = compiler.setupElement(options)
     log('\nnew VM instance:', el.tagName, '\n')
 
-    // copy scope properties to vm
-    var scope = options.scope
-    if (scope) utils.extend(vm, scope, true)
-
+    // set compiler properties
     compiler.vm  = vm
-    def(vm, '$', makeHash())
-    def(vm, '$el', el)
-    def(vm, '$compiler', compiler)
-
-    // keep track of directives and expressions
-    // so they can be unbound during destroy()
     compiler.dirs = []
     compiler.exps = []
-    compiler.childCompilers = [] // keep track of child compilers
-    compiler.emitter = new Emitter() // the emitter used for nested VM communication
+    compiler.computed = []
+    compiler.childCompilers = []
+    compiler.emitter = new Emitter()
 
-    // Store things during parsing to be processed afterwards,
-    // because we want to have created all bindings before
-    // observing values / parsing dependencies.
-    var observables = compiler.observables = [],
-        computed    = compiler.computed    = []
-
-    // prototypal inheritance of bindings
+    // inherit parent bindings
     var parent = compiler.parentCompiler
     compiler.bindings = parent
         ? Object.create(parent.bindings)
@@ -835,10 +853,17 @@ function Compiler (vm, options) {
         ? getRoot(parent)
         : compiler
 
+    // set inenumerable VM properties
+    def(vm, '$', makeHash())
+    def(vm, '$el', el)
+    def(vm, '$compiler', compiler)
+    def(vm, '$root', compiler.rootCompiler.vm)
+
     // set parent VM
     // and register child id on parent
-    var childId = utils.attr(el, 'id')
+    var childId = utils.attr(el, 'component-id')
     if (parent) {
+        parent.childCompilers.push(compiler)
         def(vm, '$parent', parent.vm)
         if (childId) {
             compiler.childId = childId
@@ -849,45 +874,53 @@ function Compiler (vm, options) {
     // setup observer
     compiler.setupObserver()
 
-    // call user init. this will capture some initial values.
-    if (options.init) {
-        options.init.apply(vm, options.args || [])
-    }
+    // beforeCompile hook
+    compiler.execHook('beforeCompile', 'created')
 
-    // create bindings for keys set on the vm by the user
-    var key, keyPrefix
-    for (key in vm) {
-        keyPrefix = key.charAt(0)
-        if (keyPrefix !== '$' && keyPrefix !== '_') {
-            compiler.createBinding(key)
-        }
-    }
+    // the user might have set some props on the vm 
+    // so copy it back to the data...
+    extend(data, vm)
 
+    // observe the data
+    Observer.observe(data, '', compiler.observer)
+    
     // for repeated items, create an index binding
     // which should be inenumerable but configurable
     if (compiler.repeat) {
-        vm.$index = compiler.repeatIndex
-        def(vm, '$collection', compiler.repeatCollection)
+        //data.$index = compiler.repeatIndex
+        def(data, '$index', compiler.repeatIndex, false, true)
         compiler.createBinding('$index')
     }
+
+    // allow the $data object to be swapped
+    Object.defineProperty(vm, '$data', {
+        enumerable: false,
+        get: function () {
+            return compiler.data
+        },
+        set: function (newData) {
+            var oldData = compiler.data
+            Observer.unobserve(oldData, '', compiler.observer)
+            compiler.data = newData
+            Observer.copyPaths(newData, oldData)
+            Observer.observe(newData, '', compiler.observer)
+        }
+    })
 
     // now parse the DOM, during which we will create necessary bindings
     // and bind the parsed directives
     compiler.compile(el, true)
 
-    // observe root values so that they emit events when
-    // their nested values change (for an Object)
-    // or when they mutate (for an Array)
-    var i = observables.length, binding
-    while (i--) {
-        binding = observables[i]
-        Observer.observe(binding.value, binding.key, compiler.observer)
-    }
     // extract dependencies for computed properties
-    if (computed.length) DepsParser.parse(computed)
+    if (compiler.computed.length) {
+        DepsParser.parse(compiler.computed)
+    }
 
     // done!
     compiler.init = false
+
+    // post compile / ready hook
+    compiler.execHook('afterCompile', 'ready')
 }
 
 var CompilerProto = Compiler.prototype
@@ -965,7 +998,7 @@ CompilerProto.setupObserver = function () {
         })
 
     function check (key) {
-        if (!bindings[key]) {
+        if (!hasOwn.call(bindings, key)) {
             compiler.createBinding(key)
         }
     }
@@ -976,18 +1009,22 @@ CompilerProto.setupObserver = function () {
  */
 CompilerProto.compile = function (node, root) {
 
-    var compiler = this
+    var compiler = this,
+        nodeType = node.nodeType,
+        tagName  = node.tagName
 
-    if (node.nodeType === 1) { // a normal node
+    if (nodeType === 1 && tagName !== 'SCRIPT') { // a normal node
 
         // skip anything with v-pre
         if (utils.attr(node, 'pre') !== null) return
 
         // special attributes to check
         var repeatExp,
-            componentId,
+            withKey,
             partialId,
-            customElementFn = compiler.getOption('elements', node.tagName.toLowerCase())
+            directive,
+            componentId = utils.attr(node, 'component') || tagName.toLowerCase(),
+            componentCtor = compiler.getOption('components', componentId)
 
         // It is important that we access these attributes
         // procedurally because the order matters.
@@ -1001,21 +1038,20 @@ CompilerProto.compile = function (node, root) {
         if (repeatExp = utils.attr(node, 'repeat')) {
 
             // repeat block cannot have v-id at the same time.
-            var directive = Directive.parse(config.attrs.repeat, repeatExp, compiler, node)
+            directive = Directive.parse('repeat', repeatExp, compiler, node)
             if (directive) {
+                directive.Ctor = componentCtor
                 compiler.bindDirective(directive)
             }
 
-        // custom elements has 2nd highest priority
-        } else if (!root && customElementFn) {
+        // v-with has 2nd highest priority
+        } else if (!root && ((withKey = utils.attr(node, 'with')) || componentCtor)) {
 
-            addChild(customElementFn)
-
-        // v-component has 3rd highest priority
-        } else if (!root && (componentId = utils.attr(node, 'component'))) {
-
-            var ChildVM = compiler.getOption('components', componentId)
-            if (ChildVM) addChild(ChildVM)
+            directive = Directive.parse('with', withKey || '', compiler, node)
+            if (directive) {
+                directive.Ctor = componentCtor
+                compiler.bindDirective(directive)
+            }
 
         } else {
 
@@ -1036,55 +1072,56 @@ CompilerProto.compile = function (node, root) {
             compiler.compileNode(node)
         }
 
-    } else if (node.nodeType === 3) { // text node
+    } else if (nodeType === 3) { // text node
 
         compiler.compileTextNode(node)
 
     }
 
-    function addChild (Ctor) {
-        if (utils.isConstructor(Ctor)) {
-            var child = new Ctor({
-                el: node,
-                child: true,
-                compilerOptions: {
-                    parentCompiler: compiler
-                }
-            })
-            compiler.childCompilers.push(child.$compiler)
-        } else {
-            // simply call the function
-            Ctor(node)
-        }
-    }
 }
 
 /**
  *  Compile a normal node
  */
 CompilerProto.compileNode = function (node) {
-    var i, j, attrs = node.attributes
+    var i, j,
+        attrs = node.attributes,
+        prefix = config.prefix + '-'
     // parse if has attributes
     if (attrs && attrs.length) {
-        var attr, valid, exps, exp
+        var attr, isDirective, exps, exp, directive
         // loop through all attributes
         i = attrs.length
         while (i--) {
             attr = attrs[i]
-            valid = false
-            exps = Directive.split(attr.value)
-            // loop through clauses (separated by ",")
-            // inside each attribute
-            j = exps.length
-            while (j--) {
-                exp = exps[j]
-                var directive = Directive.parse(attr.name, exp, this, node)
-                if (directive) {
-                    valid = true
-                    this.bindDirective(directive)
+            isDirective = false
+
+            if (attr.name.indexOf(prefix) === 0) {
+                // a directive - split, parse and bind it.
+                isDirective = true
+                exps = Directive.split(attr.value)
+                // loop through clauses (separated by ",")
+                // inside each attribute
+                j = exps.length
+                while (j--) {
+                    exp = exps[j]
+                    directive = Directive.parse(attr.name.slice(prefix.length), exp, this, node)
+                    if (directive) {
+                        this.bindDirective(directive)
+                    }
+                }
+            } else {
+                // non directive attribute, check interpolation tags
+                exp = TextParser.parseAttr(attr.value)
+                if (exp) {
+                    directive = Directive.parse('attr', attr.name + ':' + exp, this, node)
+                    if (directive) {
+                        this.bindDirective(directive)
+                    }
                 }
             }
-            if (valid) node.removeAttribute(attr.name)
+
+            if (isDirective) node.removeAttribute(attr.name)
         }
     }
     // recursively compile childNodes
@@ -1100,23 +1137,26 @@ CompilerProto.compileNode = function (node) {
  *  Compile a text node
  */
 CompilerProto.compileTextNode = function (node) {
+
     var tokens = TextParser.parse(node.nodeValue)
     if (!tokens) return
-    var dirname = config.attrs.text,
-        el, token, directive
+    var el, token, directive, partial, partialId, partialNodes
+
     for (var i = 0, l = tokens.length; i < l; i++) {
         token = tokens[i]
         if (token.key) { // a binding
             if (token.key.charAt(0) === '>') { // a partial
-                var partialId = token.key.slice(1).trim(),
-                    partial = this.getOption('partials', partialId)
+                partialId = token.key.slice(1).trim()
+                partial = this.getOption('partials', partialId)
                 if (partial) {
                     el = partial.cloneNode(true)
-                    this.compileNode(el)
+                    // save an Array reference of the partial's nodes
+                    // so we can compile them AFTER appending the fragment
+                    partialNodes = slice.call(el.childNodes)
                 }
-            } else { // a binding
+            } else { // a real binding
                 el = document.createTextNode('')
-                directive = Directive.parse(dirname, token.key, this, el)
+                directive = Directive.parse('text', token.key, this, el)
                 if (directive) {
                     this.bindDirective(directive)
                 }
@@ -1124,7 +1164,20 @@ CompilerProto.compileTextNode = function (node) {
         } else { // a plain string
             el = document.createTextNode(token)
         }
+
+        // insert node
         node.parentNode.insertBefore(el, node)
+
+        // compile partial after appending, because its children's parentNode
+        // will change from the fragment to the correct parentNode.
+        // This could affect directives that need access to its element's parentNode.
+        if (partialNodes) {
+            for (var j = 0, k = partialNodes.length; j < k; j++) {
+                this.compile(partialNodes[j])
+            }
+            partialNodes = null
+        }
+
     }
     node.parentNode.removeChild(node)
 }
@@ -1148,36 +1201,37 @@ CompilerProto.bindDirective = function (directive) {
     var binding,
         compiler      = this,
         key           = directive.key,
-        baseKey       = key.split('.')[0],
-        ownerCompiler = traceOwnerCompiler(directive, compiler)
+        baseKey       = key.split('.')[0]
 
     if (directive.isExp) {
         // expression bindings are always created on current compiler
         binding = compiler.createBinding(key, true, directive.isFn)
-    } else if (ownerCompiler.vm.hasOwnProperty(baseKey)) {
-        // If the directive's owner compiler's VM has the key,
-        // it belongs there. Create the binding if it's not already
-        // created, and return it.
-        binding = hasOwn.call(ownerCompiler.bindings, key)
-            ? ownerCompiler.bindings[key]
-            : ownerCompiler.createBinding(key)
+    } else if (
+        hasOwn.call(compiler.data, baseKey) ||
+        hasOwn.call(compiler.vm, baseKey)
+    ) {
+        // If the directive's compiler's VM has the base key,
+        // it belongs here. Create the binding if it's not created already.
+        binding = hasOwn.call(compiler.bindings, key)
+            ? compiler.bindings[key]
+            : compiler.createBinding(key)
     } else {
         // due to prototypal inheritance of bindings, if a key doesn't exist
-        // on the owner compiler's VM, then it doesn't exist in the whole
+        // on the bindings object, then it doesn't exist in the whole
         // prototype chain. In this case we create the new binding at the root level.
-        binding = ownerCompiler.bindings[key] || compiler.rootCompiler.createBinding(key)
+        binding = compiler.bindings[key] || compiler.rootCompiler.createBinding(key)
     }
 
     binding.instances.push(directive)
     directive.binding = binding
 
-    var value = binding.value
     // invoke bind hook if exists
     if (directive.bind) {
-        directive.bind(value)
+        directive.bind()
     }
 
     // set initial value
+    var value = binding.value
     if (value !== undefined) {
         if (binding.isComputed) {
             directive.refresh(value)
@@ -1213,11 +1267,12 @@ CompilerProto.createBinding = function (key, isExp, isFn) {
         bindings[key] = binding
         // make sure the key exists in the object so it can be observed
         // by the Observer!
-        Observer.ensurePath(compiler.vm, key)
         if (binding.root) {
             // this is a root level binding. we need to define getter/setters for it.
             compiler.define(key, binding)
         } else {
+            // ensure path in data so it can be observed
+            Observer.ensurePath(compiler.data, key)
             var parentKey = key.slice(0, key.lastIndexOf('.'))
             if (!hasOwn.call(bindings, parentKey)) {
                 // this is a nested value binding, but the binding for its parent
@@ -1238,53 +1293,43 @@ CompilerProto.define = function (key, binding) {
     log('    defined root binding: ' + key)
 
     var compiler = this,
-        vm = compiler.vm,
-        ob = compiler.observer,
-        value = binding.value = vm[key], // save the value before redefinening it
-        type = utils.typeOf(value)
+        data     = compiler.data,
+        vm       = compiler.vm,
+        ob       = data.__observer__
 
-    if (type === 'Object' && value.$get) {
-        // computed property
+    if (!(key in data)) {
+        data[key] = undefined
+    }
+
+    // if the data object is already observed, but the key
+    // is not observed, we need to add it to the observed keys.
+    if (ob && !(key in ob.values)) {
+        Observer.convert(data, key)
+    }
+
+    var value = binding.value = data[key]
+    if (utils.typeOf(value) === 'Object' && value.$get) {
         compiler.markComputed(binding)
-    } else if (type === 'Object' || type === 'Array') {
-        // observe objects later, becase there might be more keys
-        // to be added to it. we also want to emit all the set events
-        // after all values are available.
-        compiler.observables.push(binding)
     }
 
     Object.defineProperty(vm, key, {
-        enumerable: true,
-        get: function () {
-            var value = binding.value
-            if (depsOb.active && (!binding.isComputed && (!value || !value.__observer__)) ||
-                Array.isArray(value)) {
-                // only emit non-computed, non-observed (primitive) values, or Arrays.
-                // because these are the cleanest dependencies
-                ob.emit('get', key)
+        enumerable: !binding.isComputed,
+        get: binding.isComputed
+            ? function () {
+                return compiler.data[key].$get()
             }
-            return binding.isComputed
-                ? value.$get()
-                : value
-        },
-        set: function (newVal) {
-            var value = binding.value
-            if (binding.isComputed) {
-                if (value.$set) {
-                    value.$set(newVal)
+            : function () {
+                return compiler.data[key]
+            },
+        set: binding.isComputed
+            ? function (val) {
+                if (compiler.data[key].$set) {
+                    compiler.data[key].$set(val)
                 }
-            } else if (newVal !== value) {
-                // unwatch the old value
-                Observer.unobserve(value, key, ob)
-                // set new value
-                binding.value = newVal
-                ob.emit('set', key, newVal)
-                Observer.ensurePaths(key, newVal, compiler.bindings)
-                // now watch the new value, which in turn emits 'set'
-                // for all its nested values
-                Observer.observe(newVal, key, ob)
             }
-        }
+            : function (val) {
+                compiler.data[key] = val
+            }
     })
 }
 
@@ -1296,9 +1341,7 @@ CompilerProto.markComputed = function (binding) {
         vm    = this.vm
     binding.isComputed = true
     // bind the accessors to the vm
-    if (binding.isFn) {
-        binding.value = utils.bind(value, vm)
-    } else {
+    if (!binding.isFn) {
         value.$get = utils.bind(value.$get, vm)
         if (value.$set) {
             value.$set = utils.bind(value.$set, vm)
@@ -1312,8 +1355,24 @@ CompilerProto.markComputed = function (binding) {
  *  Retrive an option from the compiler
  */
 CompilerProto.getOption = function (type, id) {
-    var opts = this.options
-    return (opts[type] && opts[type][id]) || (utils[type] && utils[type][id])
+    var opts = this.options,
+        parent = this.parentCompiler
+    return (opts[type] && opts[type][id]) || (
+        parent
+            ? parent.getOption(type, id)
+            : utils[type] && utils[type][id]
+    )
+}
+
+/**
+ *  Execute a user hook
+ */
+CompilerProto.execHook = function (id, alt) {
+    var opts = this.options,
+        hook = opts[id] || opts[alt]
+    if (hook) {
+        hook.call(this.vm, opts)
+    }
 }
 
 /**
@@ -1323,14 +1382,13 @@ CompilerProto.destroy = function () {
 
     var compiler = this,
         i, key, dir, instances, binding,
-        el         = compiler.el,
-        directives = compiler.dirs,
-        exps       = compiler.exps,
-        bindings   = compiler.bindings,
-        teardown   = compiler.options.teardown
+        vm          = compiler.vm,
+        el          = compiler.el,
+        directives  = compiler.dirs,
+        exps        = compiler.exps,
+        bindings    = compiler.bindings
 
-    // call user teardown first
-    if (teardown) teardown()
+    compiler.execHook('beforeDestroy')
 
     // unwatch
     compiler.observer.off()
@@ -1380,44 +1438,33 @@ CompilerProto.destroy = function () {
     // finally remove dom element
     if (el === document.body) {
         el.innerHTML = ''
-    } else if (el.parentNode) {
-        transition(el, -1, function () {
-            el.parentNode.removeChild(el)
-        }, this)
+    } else {
+        vm.$remove()
     }
+
+    compiler.execHook('afterDestroy')
 }
 
 // Helpers --------------------------------------------------------------------
 
 /**
- *  determine which viewmodel a key belongs to based on nesting symbols
- */
-function traceOwnerCompiler (key, compiler) {
-    if (key.nesting) {
-        var levels = key.nesting
-        while (compiler.parentCompiler && levels--) {
-            compiler = compiler.parentCompiler
-        }
-    } else if (key.root) {
-        while (compiler.parentCompiler) {
-            compiler = compiler.parentCompiler
-        }
-    }
-    return compiler
-}
-
-/**
  *  shorthand for getting root compiler
  */
 function getRoot (compiler) {
-    return traceOwnerCompiler({ root: true }, compiler)
+    while (compiler.parentCompiler) {
+        compiler = compiler.parentCompiler
+    }
+    return compiler
 }
 
 module.exports = Compiler
 });
 require.register("yyx990803-vue/src/viewmodel.js", function(exports, require, module){
-var Compiler = require('./compiler'),
-    def      = require('./utils').defProtected
+var Compiler   = require('./compiler'),
+    utils      = require('./utils'),
+    transition = require('./transition'),
+    def        = utils.defProtected,
+    nextTick   = utils.nextTick
 
 /**
  *  ViewModel exposed to the user that holds data,
@@ -1452,7 +1499,15 @@ def(VMProto, '$set', function (key, value) {
  *  fire callback with new value
  */
 def(VMProto, '$watch', function (key, callback) {
-    this.$compiler.observer.on('change:' + key, callback)
+    var self = this
+    function on () {
+        var args = arguments
+        utils.nextTick(function () {
+            callback.apply(self, args)
+        })
+    }
+    callback._fn = on
+    self.$compiler.observer.on('change:' + key, on)
 })
 
 /**
@@ -1464,7 +1519,7 @@ def(VMProto, '$unwatch', function (key, callback) {
     // by checking the length of arguments
     var args = ['change:' + key],
         ob = this.$compiler.observer
-    if (callback) args.push(callback)
+    if (callback) args.push(callback._fn)
     ob.off.apply(ob, args)
 })
 
@@ -1492,26 +1547,79 @@ def(VMProto, '$broadcast', function () {
 /**
  *  emit an event that propagates all the way up to parent VMs.
  */
-def(VMProto, '$emit', function () {
+def(VMProto, '$dispatch', function () {
     var compiler = this.$compiler,
         emitter = compiler.emitter,
         parent = compiler.parentCompiler
     emitter.emit.apply(emitter, arguments)
     if (parent) {
-        parent.emitter.emit.apply(parent.emitter, arguments)
-        parent.vm.$emit.apply(parent.vm, arguments)
+        parent.vm.$dispatch.apply(parent.vm, arguments)
     }
 })
 
 /**
  *  delegate on/off/once to the compiler's emitter
  */
-;['on', 'off', 'once'].forEach(function (method) {
+;['emit', 'on', 'off', 'once'].forEach(function (method) {
     def(VMProto, '$' + method, function () {
         var emitter = this.$compiler.emitter
         emitter[method].apply(emitter, arguments)
     })
 })
+
+// DOM convenience methods
+
+def(VMProto, '$appendTo', function (target, cb) {
+    target = query(target)
+    var el = this.$el
+    transition(el, 1, function () {
+        target.appendChild(el)
+        if (cb) nextTick(cb)
+    }, this.$compiler)
+})
+
+def(VMProto, '$remove', function (cb) {
+    var el = this.$el,
+        parent = el.parentNode
+    if (!parent) return
+    transition(el, -1, function () {
+        parent.removeChild(el)
+        if (cb) nextTick(cb)
+    }, this.$compiler)
+})
+
+def(VMProto, '$before', function (target, cb) {
+    target = query(target)
+    var el = this.$el,
+        parent = target.parentNode
+    if (!parent) return
+    transition(el, 1, function () {
+        parent.insertBefore(el, target)
+        if (cb) nextTick(cb)
+    }, this.$compiler)
+})
+
+def(VMProto, '$after', function (target, cb) {
+    target = query(target)
+    var el = this.$el,
+        parent = target.parentNode,
+        next = target.nextSibling
+    if (!parent) return
+    transition(el, 1, function () {
+        if (next) {
+            parent.insertBefore(el, next)
+        } else {
+            parent.appendChild(el)
+        }
+        if (cb) nextTick(cb)
+    }, this.$compiler)
+})
+
+function query (el) {
+    return typeof el === 'string'
+        ? document.querySelector(el)
+        : el
+}
 
 /**
  *  If a VM doesn't contain a path, go up the prototype chain
@@ -1528,6 +1636,9 @@ function getTargetVM (vm, path) {
 module.exports = ViewModel
 });
 require.register("yyx990803-vue/src/binding.js", function(exports, require, module){
+var batcher = require('./batcher'),
+    id = 0
+
 /**
  *  Binding class.
  *
@@ -1536,6 +1647,7 @@ require.register("yyx990803-vue/src/binding.js", function(exports, require, modu
  *  and multiple computed property dependents
  */
 function Binding (compiler, key, isExp, isFn) {
+    this.id = id++
     this.value = undefined
     this.isExp = !!isExp
     this.isFn = isFn
@@ -1545,6 +1657,7 @@ function Binding (compiler, key, isExp, isFn) {
     this.instances = []
     this.subs = []
     this.deps = []
+    this.unbound = false
 }
 
 var BindingProto = Binding.prototype
@@ -1554,9 +1667,13 @@ var BindingProto = Binding.prototype
  */
 BindingProto.update = function (value) {
     this.value = value
+    batcher.queue(this, 'update')
+}
+
+BindingProto._update = function () {
     var i = this.instances.length
     while (i--) {
-        this.instances[i].update(value)
+        this.instances[i].update(this.value)
     }
     this.pub()
 }
@@ -1566,6 +1683,10 @@ BindingProto.update = function (value) {
  *  Force all instances to re-evaluate themselves
  */
 BindingProto.refresh = function () {
+    batcher.queue(this, 'refresh')
+}
+
+BindingProto._refresh = function () {
     var i = this.instances.length
     while (i--) {
         this.instances[i].refresh()
@@ -1588,6 +1709,11 @@ BindingProto.pub = function () {
  *  Unbind the binding, remove itself from all of its dependencies
  */
 BindingProto.unbind = function () {
+    // Indicate this has been unbound.
+    // It's possible this binding will be in
+    // the batcher's flush queue when its owner
+    // compiler has already been destroyed.
+    this.unbound = true
     var i = this.instances.length
     while (i--) {
         this.instances[i].unbind()
@@ -1614,6 +1740,10 @@ var Emitter  = require('./emitter'),
     def      = utils.defProtected,
     slice    = Array.prototype.slice,
 
+    // types
+    OBJECT   = 'Object',
+    ARRAY    = 'Array',
+
     // Array mutation methods to wrap
     methods  = ['push','pop','shift','unshift','splice','sort','reverse'],
 
@@ -1621,7 +1751,10 @@ var Emitter  = require('./emitter'),
     // define methods as inenumerable if __proto__ is present,
     // otherwise enumerable so we can loop through and manually
     // attach to array instances
-    hasProto = ({}).__proto__
+    hasProto = ({}).__proto__,
+
+    // lazy load
+    ViewModel
 
 // The proxy prototype to replace the __proto__ of
 // an observed array
@@ -1689,26 +1822,11 @@ for (var method in extensions) {
 }
 
 /**
- *  Watch an object based on type
- */
-function watch (obj, path, observer) {
-    var type = typeOf(obj)
-    if (type === 'Object') {
-        watchObject(obj, path, observer)
-    } else if (type === 'Array') {
-        watchArray(obj, path, observer)
-    }
-}
-
-/**
  *  Watch an Object, recursive.
  */
-function watchObject (obj, path, observer) {
+function watchObject (obj) {
     for (var key in obj) {
-        var keyPrefix = key.charAt(0)
-        if (keyPrefix !== '$' && keyPrefix !== '_') {
-            bind(obj, key, path, observer)
-        }
+        convert(obj, key)
     }
 }
 
@@ -1716,8 +1834,12 @@ function watchObject (obj, path, observer) {
  *  Watch an Array, overload mutation methods
  *  and add augmentations by intercepting the prototype chain
  */
-function watchArray (arr, path, observer) {
-    def(arr, '__observer__', observer)
+function watchArray (arr, path) {
+    var observer = arr.__observer__
+    if (!observer) {
+        observer = new Emitter()
+        def(arr, '__observer__', observer)
+    }
     observer.path = path
     if (hasProto) {
         arr.__proto__ = ArrayProxy
@@ -1733,41 +1855,49 @@ function watchArray (arr, path, observer) {
  *  so it emits get/set events.
  *  Then watch the value itself.
  */
-function bind (obj, key, path, observer) {
-    var val       = obj[key],
-        watchable = isWatchable(val),
-        values    = observer.values,
-        fullKey   = (path ? path + '.' : '') + key
-    values[fullKey] = val
+function convert (obj, key) {
+    var keyPrefix = key.charAt(0)
+    if ((keyPrefix === '$' || keyPrefix === '_') && key !== '$index') {
+        return
+    }
     // emit set on bind
     // this means when an object is observed it will emit
     // a first batch of set events.
-    observer.emit('set', fullKey, val)
+    var observer = obj.__observer__,
+        values   = observer.values,
+        val      = values[key] = obj[key]
+    observer.emit('set', key, val)
+    if (Array.isArray(val)) {
+        observer.emit('set', key + '.length', val.length)
+    }
     Object.defineProperty(obj, key, {
-        enumerable: true,
         get: function () {
+            var value = values[key]
             // only emit get on tip values
-            if (depsOb.active && !watchable) {
-                observer.emit('get', fullKey)
+            if (depsOb.active && typeOf(value) !== OBJECT) {
+                observer.emit('get', key)
             }
-            return values[fullKey]
+            return value
         },
         set: function (newVal) {
-            values[fullKey] = newVal
-            ensurePaths(key, newVal, values)
-            observer.emit('set', fullKey, newVal)
-            watch(newVal, fullKey, observer)
+            var oldVal = values[key]
+            unobserve(oldVal, key, observer)
+            values[key] = newVal
+            copyPaths(newVal, oldVal)
+            observer.emit('set', key, newVal)
+            observe(newVal, key, observer)
         }
     })
-    watch(val, fullKey, observer)
+    observe(val, key, observer)
 }
 
 /**
  *  Check if a value is watchable
  */
 function isWatchable (obj) {
+    ViewModel = ViewModel || require('./viewmodel')
     var type = typeOf(obj)
-    return type === 'Object' || type === 'Array'
+    return (type === OBJECT || type === ARRAY) && !(obj instanceof ViewModel)
 }
 
 /**
@@ -1776,29 +1906,44 @@ function isWatchable (obj) {
  *  the watch conversion and simply emit set event for
  *  all of its properties.
  */
-function emitSet (obj, observer, set) {
-    if (typeOf(obj) === 'Array') {
-        set('length', obj.length)
-    } else {
-        var key, val, values = observer.values
-        for (key in observer.values) {
-            val = values[key]
-            set(key, val)
+function emitSet (obj) {
+    var type = typeOf(obj),
+        emitter = obj && obj.__observer__
+    if (type === ARRAY) {
+        emitter.emit('set', 'length', obj.length)
+    } else if (type === OBJECT) {
+        var key, val
+        for (key in obj) {
+            val = obj[key]
+            emitter.emit('set', key, val)
+            emitSet(val)
         }
     }
 }
 
 /**
- *  Sometimes when a binding is found in the template, the value might
- *  have not been set on the VM yet. To ensure computed properties and
- *  dependency extraction can work, we have to create a dummy value for
- *  any given path.
+ *  Make sure all the paths in an old object exists
+ *  in a new object.
+ *  So when an object changes, all missing keys will
+ *  emit a set event with undefined value.
  */
-function ensurePaths (key, val, paths) {
-    key += '.'
-    for (var path in paths) {
-        if (!path.indexOf(key)) {
-            ensurePath(val, path.replace(key, ''))
+function copyPaths (newObj, oldObj) {
+    if (typeOf(oldObj) !== OBJECT || typeOf(newObj) !== OBJECT) {
+        return
+    }
+    var path, type, oldVal, newVal
+    for (path in oldObj) {
+        if (!(path in newObj)) {
+            oldVal = oldObj[path]
+            type = typeOf(oldVal)
+            if (type === OBJECT) {
+                newVal = newObj[path] = {}
+                copyPaths(newVal, oldVal)
+            } else if (type === ARRAY) {
+                newObj[path] = []
+            } else {
+                newObj[path] = undefined
+            }
         }
     }
 }
@@ -1808,88 +1953,99 @@ function ensurePaths (key, val, paths) {
  *  and enumerated in that object
  */
 function ensurePath (obj, key) {
-    if (typeOf(obj) !== 'Object') return
     var path = key.split('.'), sec
     for (var i = 0, d = path.length - 1; i < d; i++) {
         sec = path[i]
-        if (!obj[sec]) obj[sec] = {}
+        if (!obj[sec]) {
+            obj[sec] = {}
+            if (obj.__observer__) convert(obj, sec)
+        }
         obj = obj[sec]
     }
-    if (typeOf(obj) === 'Object') {
+    if (typeOf(obj) === OBJECT) {
         sec = path[i]
-        if (!(sec in obj)) obj[sec] = undefined
+        if (!(sec in obj)) {
+            obj[sec] = undefined
+            if (obj.__observer__) convert(obj, sec)
+        }
     }
+}
+
+/**
+ *  Observe an object with a given path,
+ *  and proxy get/set/mutate events to the provided observer.
+ */
+function observe (obj, rawPath, observer) {
+    if (!isWatchable(obj)) return
+    var path = rawPath ? rawPath + '.' : '',
+        ob, alreadyConverted = !!obj.__observer__
+    if (!alreadyConverted) {
+        def(obj, '__observer__', new Emitter())
+    }
+    ob = obj.__observer__
+    ob.values = ob.values || utils.hash()
+    observer.proxies = observer.proxies || {}
+    var proxies = observer.proxies[path] = {
+        get: function (key) {
+            observer.emit('get', path + key)
+        },
+        set: function (key, val) {
+            observer.emit('set', path + key, val)
+        },
+        mutate: function (key, val, mutation) {
+            // if the Array is a root value
+            // the key will be null
+            var fixedPath = key ? path + key : rawPath
+            observer.emit('mutate', fixedPath, val, mutation)
+            // also emit set for Array's length when it mutates
+            var m = mutation.method
+            if (m !== 'sort' && m !== 'reverse') {
+                observer.emit('set', fixedPath + '.length', val.length)
+            }
+        }
+    }
+    ob
+        .on('get', proxies.get)
+        .on('set', proxies.set)
+        .on('mutate', proxies.mutate)
+    if (alreadyConverted) {
+        emitSet(obj)
+    } else {
+        var type = typeOf(obj)
+        if (type === OBJECT) {
+            watchObject(obj)
+        } else if (type === ARRAY) {
+            watchArray(obj)
+        }
+    }
+}
+
+/**
+ *  Cancel observation, turn off the listeners.
+ */
+function unobserve (obj, path, observer) {
+    if (!obj || !obj.__observer__) return
+    path = path ? path + '.' : ''
+    var proxies = observer.proxies[path]
+    if (!proxies) return
+    obj.__observer__
+        .off('get', proxies.get)
+        .off('set', proxies.set)
+        .off('mutate', proxies.mutate)
+    observer.proxies[path] = null
 }
 
 module.exports = {
-
-    // used in v-repeat
-    watchArray: watchArray,
-    ensurePath: ensurePath,
-    ensurePaths: ensurePaths,
-
-    /**
-     *  Observe an object with a given path,
-     *  and proxy get/set/mutate events to the provided observer.
-     */
-    observe: function (obj, rawPath, observer) {
-        if (isWatchable(obj)) {
-            var path = rawPath + '.',
-                ob, alreadyConverted = !!obj.__observer__
-            if (!alreadyConverted) {
-                def(obj, '__observer__', new Emitter())
-            }
-            ob = obj.__observer__
-            ob.values = ob.values || utils.hash()
-            var proxies = observer.proxies[path] = {
-                get: function (key) {
-                    observer.emit('get', path + key)
-                },
-                set: function (key, val) {
-                    observer.emit('set', path + key, val)
-                },
-                mutate: function (key, val, mutation) {
-                    // if the Array is a root value
-                    // the key will be null
-                    var fixedPath = key ? path + key : rawPath
-                    observer.emit('mutate', fixedPath, val, mutation)
-                    // also emit set for Array's length when it mutates
-                    var m = mutation.method
-                    if (m !== 'sort' && m !== 'reverse') {
-                        observer.emit('set', fixedPath + '.length', val.length)
-                    }
-                }
-            }
-            ob
-                .on('get', proxies.get)
-                .on('set', proxies.set)
-                .on('mutate', proxies.mutate)
-            if (alreadyConverted) {
-                emitSet(obj, ob, proxies.set)
-            } else {
-                watch(obj, null, ob)
-            }
-        }
-    },
-
-    /**
-     *  Cancel observation, turn off the listeners.
-     */
-    unobserve: function (obj, path, observer) {
-        if (!obj || !obj.__observer__) return
-        path = path + '.'
-        var proxies = observer.proxies[path]
-        obj.__observer__
-            .off('get', proxies.get)
-            .off('set', proxies.set)
-            .off('mutate', proxies.mutate)
-        observer.proxies[path] = null
-    }
+    observe     : observe,
+    unobserve   : unobserve,
+    ensurePath  : ensurePath,
+    convert     : convert,
+    copyPaths   : copyPaths,
+    watchArray  : watchArray,
 }
 });
 require.register("yyx990803-vue/src/directive.js", function(exports, require, module){
-var config     = require('./config'),
-    utils      = require('./utils'),
+var utils      = require('./utils'),
     directives = require('./directives'),
     filters    = require('./filters'),
 
@@ -1905,7 +2061,7 @@ var config     = require('./config'),
     ARG_RE          = /^([\w- ]+):(.+)$/,
     FILTERS_RE      = /\|[^\|]+/g,
     FILTER_TOKEN_RE = /[^\s']+|'[^']+'/g,
-    NESTING_RE      = /^\^+/,
+    NESTING_RE      = /^\$(parent|root)\./,
     SINGLE_VAR_RE   = /^[\w\.\$]+$/
 
 /**
@@ -1944,7 +2100,7 @@ function Directive (definition, expression, rawKey, compiler, node) {
     
     parseKey(this, rawKey)
 
-    this.isExp = !SINGLE_VAR_RE.test(this.key)
+    this.isExp = !SINGLE_VAR_RE.test(this.key) || NESTING_RE.test(this.key)
     
     var filterExps = this.expression.slice(rawKey.length).match(FILTERS_RE)
     if (filterExps) {
@@ -1966,7 +2122,6 @@ var DirProto = Directive.prototype
  *  parse a key, extract argument and nesting/root info
  */
 function parseKey (dir, rawKey) {
-
     var key = rawKey
     if (rawKey.indexOf(':') > -1) {
         var argMatch = rawKey.match(ARG_RE)
@@ -1977,20 +2132,6 @@ function parseKey (dir, rawKey) {
             ? argMatch[1].trim()
             : null
     }
-
-    // nesting
-    var firstChar = key.charAt(0)
-    dir.root = firstChar === '*'
-    dir.nesting = firstChar === '^'
-        ? key.match(NESTING_RE)[0].length
-        : false
-
-    if (dir.nesting) {
-        key = key.slice(dir.nesting)
-    } else if (dir.root) {
-        key = key.slice(1)
-    }
-
     dir.key = key
 }
 
@@ -2106,10 +2247,6 @@ Directive.split = function (exp) {
  */
 Directive.parse = function (dirname, expression, compiler, node) {
 
-    var prefix = config.prefix + '-'
-    if (dirname.indexOf(prefix) !== 0) return
-    dirname = dirname.slice(prefix.length)
-
     var dir = compiler.getOption('directives', dirname) || directives[dirname]
     if (!dir) return utils.warn('unknown directive: ' + dirname)
 
@@ -2133,7 +2270,9 @@ module.exports = Directive
 });
 require.register("yyx990803-vue/src/exp-parser.js", function(exports, require, module){
 var utils = require('./utils'),
-    hasOwn = Object.prototype.hasOwnProperty
+    hasOwn = Object.prototype.hasOwnProperty,
+    stringSaveRE = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g,
+    stringRestoreRE = /"(\d+)"/g
 
 // Variable extraction scooped from https://github.com/RubyLouvre/avalon
 
@@ -2192,7 +2331,10 @@ function getRel (path, compiler) {
             ? path.slice(0, dot)
             : path
     while (true) {
-        if (hasOwn.call(vm, key)) {
+        if (
+            hasOwn.call(vm.$data, key) ||
+            hasOwn.call(vm, key)
+        ) {
             break
         } else {
             if (vm.$parent) {
@@ -2216,7 +2358,7 @@ function getRel (path, compiler) {
 /**
  *  Create a function from a string...
  *  this looks like evil magic but since all variables are limited
- *  to the VM's scope it's actually properly sandboxed
+ *  to the VM's data it's actually properly sandboxed
  */
 function makeGetter (exp, raw) {
     /* jshint evil: true */
@@ -2253,6 +2395,8 @@ module.exports = {
         }
         vars = utils.unique(vars)
         var accessors = '',
+            has       = utils.hash(),
+            strings   = [],
             // construct a regex to extract all valid variable paths
             // ones that begin with "$" are particularly tricky
             // because we can't use \b for them
@@ -2261,16 +2405,35 @@ module.exports = {
                 vars.map(escapeDollar).join('|') +
                 ")[$\\w\\.]*\\b", 'g'
             ),
-            body = ('return ' + exp).replace(pathRE, function (path) {
-                // keep track of the first char
-                var c = path.charAt(0)
-                path = path.slice(1)
-                var val = 'this.' + getRel(path, compiler) + path
-                accessors += val + ';'
-                // don't forget to put that first char back
-                return c + val
-            })
+            body = ('return ' + exp)
+                .replace(stringSaveRE, saveStrings)
+                .replace(pathRE, replacePath)
+                .replace(stringRestoreRE, restoreStrings)
         body = accessors + body
+
+        function saveStrings (str) {
+            var i = strings.length
+            strings[i] = str
+            return '"' + i + '"'
+        }
+
+        function replacePath (path) {
+            // keep track of the first char
+            var c = path.charAt(0)
+            path = path.slice(1)
+            var val = 'this.' + getRel(path, compiler) + path
+            if (!has[path]) {
+                accessors += val + ';'
+                has[path] = 1
+            }
+            // don't forget to put that first char back
+            return c + val
+        }
+
+        function restoreStrings (str, i) {
+            return strings[i]
+        }
+
         return makeGetter(body, exp)
     }
 }
@@ -2278,26 +2441,40 @@ module.exports = {
 require.register("yyx990803-vue/src/text-parser.js", function(exports, require, module){
 var BINDING_RE = /\{\{(.+?)\}\}/
 
-module.exports = {
-
-    /**
-     *  Parse a piece of text, return an array of tokens
-     */
-    parse: function (text) {
-        if (!BINDING_RE.test(text)) return null
-        var m, i, tokens = []
-        /* jshint boss: true */
-        while (m = text.match(BINDING_RE)) {
-            i = m.index
-            if (i > 0) tokens.push(text.slice(0, i))
-            tokens.push({ key: m[1].trim() })
-            text = text.slice(i + m[0].length)
-        }
-        if (text.length) tokens.push(text)
-        return tokens
+/**
+ *  Parse a piece of text, return an array of tokens
+ */
+function parse (text) {
+    if (!BINDING_RE.test(text)) return null
+    var m, i, tokens = []
+    /* jshint boss: true */
+    while (m = text.match(BINDING_RE)) {
+        i = m.index
+        if (i > 0) tokens.push(text.slice(0, i))
+        tokens.push({ key: m[1].trim() })
+        text = text.slice(i + m[0].length)
     }
-    
+    if (text.length) tokens.push(text)
+    return tokens
 }
+
+/**
+ *  Parse an attribute value with possible interpolation tags
+ *  return a Directive-friendly expression
+ */
+function parseAttr (attr) {
+    var tokens = parse(attr)
+    if (!tokens) return null
+    var res = [], token
+    for (var i = 0, l = tokens.length; i < l; i++) {
+        token = tokens[i]
+        res.push(token.key || ('"' + token + '"'))
+    }
+    return res.join('+')
+}
+
+exports.parse = parse
+exports.parseAttr = parseAttr
 });
 require.register("yyx990803-vue/src/deps-parser.js", function(exports, require, module){
 var Emitter  = require('./emitter'),
@@ -2310,12 +2487,13 @@ var Emitter  = require('./emitter'),
  */
 function catchDeps (binding) {
     if (binding.isFn) return
-    utils.log('\n─ ' + binding.key)
-    var depsHash = utils.hash()
+    utils.log('\n- ' + binding.key)
+    var got = utils.hash()
     observer.on('get', function (dep) {
-        if (depsHash[dep.key]) return
-        depsHash[dep.key] = 1
-        utils.log('  └─ ' + dep.key)
+        var has = got[dep.key]
+        if (has && has.compiler === dep.compiler) return
+        got[dep.key] = dep
+        utils.log('  - ' + dep.key)
         binding.deps.push(dep)
         dep.subs.push(binding)
     })
@@ -2454,7 +2632,12 @@ var endEvent   = sniffTransitionEndEvent(),
  *    1 = enter
  *    2 = leave
  */
-var transition = module.exports = function (el, stage, changeState, compiler) {
+var transition = module.exports = function (el, stage, cb, compiler) {
+
+    var changeState = function () {
+        cb()
+        compiler.execHook(stage > 0 ? 'enteredView' : 'leftView')
+    }
 
     if (compiler.init) {
         changeState()
@@ -2577,8 +2760,8 @@ function sniffTransitionEndEvent () {
         defaultEvent = 'transitionend',
         events = {
             'transition'       : defaultEvent,
-            'MozTransition'    : defaultEvent,
-            'WebkitTransition' : 'webkitTransitionEnd'
+            'mozTransition'    : defaultEvent,
+            'webkitTransition' : 'webkitTransitionEnd'
         }
     for (var name in events) {
         if (el.style[name] !== undefined) {
@@ -2587,16 +2770,59 @@ function sniffTransitionEndEvent () {
     }
 }
 });
+require.register("yyx990803-vue/src/batcher.js", function(exports, require, module){
+var config = require('./config'),
+    utils = require('./utils'),
+    queue, has, waiting
+
+reset()
+
+exports.queue = function (binding, method) {
+    if (!config.async) {
+        binding['_' + method]()
+        return
+    }
+    if (!has[binding.id]) {
+        queue.push({
+            binding: binding,
+            method: method
+        })
+        has[binding.id] = true
+        if (!waiting) {
+            waiting = true
+            utils.nextTick(flush)
+        }
+    }
+}
+
+function flush () {
+    for (var i = 0; i < queue.length; i++) {
+        var task = queue[i],
+            b = task.binding
+        if (b.unbound) continue
+        b['_' + task.method]()
+        has[b.id] = false
+    }
+    reset()
+}
+
+function reset () {
+    queue = []
+    has = utils.hash()
+    waiting = false
+}
+});
 require.register("yyx990803-vue/src/directives/index.js", function(exports, require, module){
 var utils      = require('../utils'),
     transition = require('../transition')
 
 module.exports = {
 
-    on     : require('./on'),
-    repeat : require('./repeat'),
-    model  : require('./model'),
-    'if'   : require('./if'),
+    on        : require('./on'),
+    repeat    : require('./repeat'),
+    model     : require('./model'),
+    'if'      : require('./if'),
+    'with'    : require('./with'),
 
     attr: function (value) {
         this.el.setAttribute(this.arg, value)
@@ -2608,10 +2834,6 @@ module.exports = {
 
     html: function (value) {
         this.el.innerHTML = utils.toText(value)
-    },
-
-    visible: function (value) {
-        this.el.style.visibility = value ? '' : 'hidden'
     },
 
     show: function (value) {
@@ -2635,27 +2857,8 @@ module.exports = {
                 this.lastVal = value
             }
         }
-    },
-
-    style: {
-        bind: function () {
-            this.arg = convertCSSProperty(this.arg)
-        },
-        update: function (value) {
-            this.el.style[this.arg] = value
-        }
     }
-}
 
-/**
- *  convert hyphen style CSS property to Camel style
- */
-var CONVERT_RE = /-(.)/g
-function convertCSSProperty (prop) {
-    if (prop.charAt(0) === '-') prop = prop.slice(1)
-    return prop.replace(CONVERT_RE, function (m, char) {
-        return char.toUpperCase()
-    })
 }
 });
 require.register("yyx990803-vue/src/directives/if.js", function(exports, require, module){
@@ -2771,8 +2974,7 @@ var mutationHandlers = {
     },
 
     sort: function () {
-        var key = this.arg,
-            vms = this.vms,
+        var vms = this.vms,
             col = this.collection,
             l = col.length,
             sorted = new Array(l),
@@ -2781,7 +2983,7 @@ var mutationHandlers = {
             data = col[i]
             for (j = 0; j < l; j++) {
                 vm = vms[j]
-                if (vm[key] === data) {
+                if (vm.$data === data) {
                     sorted[i] = vm
                     break
                 }
@@ -2811,15 +3013,14 @@ module.exports = {
             ctn  = self.container = el.parentNode
 
         // extract child VM information, if any
-        ViewModel       = ViewModel || require('../viewmodel')
-        var componentId = utils.attr(el, 'component')
-        self.ChildVM    = self.compiler.getOption('components', componentId) || ViewModel
+        ViewModel = ViewModel || require('../viewmodel')
+        self.Ctor = self.Ctor || ViewModel
 
         // extract transition information
         self.hasTrans   = el.hasAttribute(config.attrs.transition)
 
         // create a comment node as a reference node for DOM insertions
-        self.ref = document.createComment(config.prefix + '-repeat-' + self.arg)
+        self.ref = document.createComment(config.prefix + '-repeat-' + self.key)
         ctn.insertBefore(self.ref, el)
         ctn.removeChild(el)
 
@@ -2827,13 +3028,11 @@ module.exports = {
         self.collection = null
         self.vms = null
         self.mutationListener = function (path, arr, mutation) {
-            self.detach()
             var method = mutation.method
             mutationHandlers[method].call(self, mutation)
             if (method !== 'push' && method !== 'pop') {
                 self.updateIndexes()
             }
-            self.retach()
         }
 
     },
@@ -2860,11 +3059,9 @@ module.exports = {
 
         // create child-vms and append to DOM
         if (collection.length) {
-            this.detach()
             for (var i = 0, l = collection.length; i < l; i++) {
                 this.buildItem(collection[i], i)
             }
-            this.retach()
         }
     },
 
@@ -2877,7 +3074,6 @@ module.exports = {
 
         var node    = this.el.cloneNode(true),
             ctn     = this.container,
-            scope   = {},
             ref, item
 
         // append node into DOM first
@@ -2895,16 +3091,13 @@ module.exports = {
             }, this.compiler)
         }
 
-        // set data on scope and compile
-        scope[this.arg] = data || {}
-        item = new this.ChildVM({
+        item = new this.Ctor({
             el: node,
-            scope: scope,
+            data: data,
             compilerOptions: {
                 repeat: true,
                 repeatIndex: index,
                 repeatCollection: this.collection,
-                repeatPrefix: this.arg,
                 parentCompiler: this.compiler,
                 delegator: ctn
             }
@@ -2925,32 +3118,7 @@ module.exports = {
     updateIndexes: function () {
         var i = this.vms.length
         while (i--) {
-            this.vms[i].$index = i
-        }
-    },
-
-    /**
-     *  Detach/retach the container from the DOM before mutation
-     *  so that batch DOM updates are done in-memory and faster
-     */
-    detach: function () {
-        if (this.hasTrans) return
-        var c = this.container,
-            p = this.parent = c.parentNode
-        this.next = c.nextSibling
-        if (p) p.removeChild(c)
-    },
-
-    retach: function () {
-        if (this.hasTrans) return
-        var n = this.next,
-            p = this.parent,
-            c = this.container
-        if (!p) return
-        if (n) {
-            p.insertBefore(c, n)
-        } else {
-            p.appendChild(c)
+            this.vms[i].$data.$index = i
         }
     },
 
@@ -3003,6 +3171,7 @@ module.exports = {
 
         var compiler = this.compiler,
             event    = this.arg,
+            isExp    = this.binding.isExp,
             ownerVM  = this.binding.compiler.vm
 
         if (compiler.repeat &&
@@ -3024,9 +3193,8 @@ module.exports = {
                 var target = delegateCheck(e.target, delegator, identifier)
                 if (target) {
                     e.el = target
-                    e.vm = target.vue_viewmodel
-                    e.item = e.vm[compiler.repeatPrefix]
-                    handler.call(ownerVM, e)
+                    e.targetVM = target.vue_viewmodel
+                    handler.call(isExp ? e.targetVM : ownerVM, e)
                 }
             }
             dHandler.event = event
@@ -3038,10 +3206,7 @@ module.exports = {
             var vm = this.vm
             this.handler = function (e) {
                 e.el = e.currentTarget
-                e.vm = vm
-                if (compiler.repeat) {
-                    e.item = vm[compiler.repeatPrefix]
-                }
+                e.targetVM = vm
                 handler.call(ownerVM, e)
             }
             this.el.addEventListener(event, this.handler)
@@ -3066,27 +3231,42 @@ module.exports = {
 
         var self = this,
             el   = self.el,
-            type = el.type
+            type = el.type,
+            tag  = el.tagName
 
         self.lock = false
 
         // determine what event to listen to
         self.event =
             (self.compiler.options.lazy ||
-            el.tagName === 'SELECT' ||
-            type === 'checkbox' ||
-            type === 'radio')
+            tag === 'SELECT' ||
+            type === 'checkbox' || type === 'radio')
                 ? 'change'
                 : 'input'
 
-        // determin the attribute to change when updating
-        var attr = type === 'checkbox'
+        // determine the attribute to change when updating
+        var attr = self.attr = type === 'checkbox'
             ? 'checked'
-            : 'value'
+            : (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA')
+                ? 'value'
+                : 'innerHTML'
+
+        if (self.filters) {
+            var compositionLock = false
+            this.cLock = function () {
+                compositionLock = true
+            }
+            this.cUnlock = function () {
+                compositionLock = false
+            }
+            el.addEventListener('compositionstart', this.cLock)
+            el.addEventListener('compositionend', this.cUnlock)
+        }
 
         // attach listener
         self.set = self.filters
             ? function () {
+                if (compositionLock) return
                 // if this directive has filters
                 // we need to let the vm.$set trigger
                 // update() so filters are applied.
@@ -3097,21 +3277,22 @@ module.exports = {
                 try {
                     cursorPos = el.selectionStart
                 } catch (e) {}
-                // `input` event has weird updating issue with
-                // International (e.g. Chinese) input methods,
-                // have to use a Timeout to hack around it...
-                setTimeout(function () {
-                    self.vm.$set(self.key, el[attr])
+                self.vm.$set(self.key, el[attr])
+                // since updates are async
+                // we need to reset cursor position async too
+                utils.nextTick(function () {
                     if (cursorPos !== undefined) {
                         el.setSelectionRange(cursorPos, cursorPos)
                     }
-                }, 0)
+                })
             }
             : function () {
                 // no filters, don't let it trigger update()
                 self.lock = true
                 self.vm.$set(self.key, el[attr])
-                self.lock = false
+                utils.nextTick(function () {
+                    self.lock = false
+                })
             }
         el.addEventListener(self.event, self.set)
 
@@ -3120,9 +3301,9 @@ module.exports = {
         if (isIE9) {
             self.onCut = function () {
                 // cut event fires before the value actually changes
-                setTimeout(function () {
+                utils.nextTick(function () {
                     self.set()
-                }, 0)
+                })
             }
             self.onDel = function (e) {
                 if (e.keyCode === 46 || e.keyCode === 8) {
@@ -3156,17 +3337,59 @@ module.exports = {
         } else if (el.type === 'checkbox') { // checkbox
             el.checked = !!value
         } else {
-            el.value = utils.toText(value)
+            el[self.attr] = utils.toText(value)
         }
     },
 
     unbind: function () {
-        this.el.removeEventListener(this.event, this.set)
+        var el = this.el
+        el.removeEventListener(this.event, this.set)
+        if (this.filters) {
+            el.removeEventListener('compositionstart', this.cLock)
+            el.removeEventListener('compositionend', this.cUnlock)
+        }
         if (isIE9) {
-            this.el.removeEventListener('cut', this.onCut)
-            this.el.removeEventListener('keyup', this.onDel)
+            el.removeEventListener('cut', this.onCut)
+            el.removeEventListener('keyup', this.onDel)
         }
     }
+}
+});
+require.register("yyx990803-vue/src/directives/with.js", function(exports, require, module){
+var ViewModel
+
+module.exports = {
+
+    bind: function () {
+        if (this.isSimple) {
+            this.build()
+        }
+    },
+
+    update: function (value) {
+        if (!this.component) {
+            this.build(value)
+        } else {
+            this.component.$data = value
+        }
+    },
+
+    build: function (value) {
+        ViewModel = ViewModel || require('../viewmodel')
+        var Ctor = this.Ctor || ViewModel
+        this.component = new Ctor({
+            el: this.el,
+            data: value,
+            compilerOptions: {
+                parentCompiler: this.compiler
+            }
+        })
+    },
+
+    unbind: function () {
+        this.component.$destroy()
+    }
+
 }
 });
 require.register("a/index.js", function(exports, require, module){
@@ -3181,55 +3404,48 @@ module.exports = {
     template: require('./template.html')
 }
 });
-require.register("test/src/main.js", function(exports, require, module){
+require.register("vue-component-example/src/main.js", function(exports, require, module){
 var Vue = require('vue')
 
-config({
-    directives: [
-        'flip'
-    ],
-    filters: [
-        'reverse'
-    ],
-    components: [
-        'a',
-        'b'
-    ]
-})
+new Vue({
 
-var app = new Vue({
     el: 'body',
-    scope: {
+
+    directives: {
+        flip: require('./directives/flip')
+    },
+
+    filters: {
+        reverse: require('./filters/reverse')
+    },
+
+    components: {
+        a: require('a'),
+        b: require('b')
+    },
+
+    data: {
         msg: 'hello',
         value: 'this should be reversed and flipped',
         bgColor: '#f3f3f3'
     }
 })
-
-function config (conf) {
-    for (var type in conf) {
-        conf[type].forEach(function (id) {
-            var method = type.slice(0, -1),
-                value = require(
-                    type === 'components'
-                    ? id
-                    : './' + type + '/' + id
-                )
-            Vue[method](id, value)
-        })
-    }
-}
 });
-require.register("test/src/directives/flip.js", function(exports, require, module){
+require.register("vue-component-example/src/directives/flip.js", function(exports, require, module){
 module.exports = function () {
+    this.el.style.transform =
+    this.el.style.mozTransform =
     this.el.style.webkitTransform = 'scaleX(-1)'
 }
 });
-require.register("test/src/filters/reverse.js", function(exports, require, module){
+require.register("vue-component-example/src/filters/reverse.js", function(exports, require, module){
 module.exports = function (value) {
     return value.toString().split('').reverse().join('')
 }
 });
+
+
+
 
 require.register("a/template.html", function(exports, require, module){
 module.exports = '<div>{{msg + " I\'m component A"}}</div>';
@@ -3237,40 +3453,43 @@ module.exports = '<div>{{msg + " I\'m component A"}}</div>';
 require.register("b/template.html", function(exports, require, module){
 module.exports = '<div>{{msg + " I am component B"}}</div>';
 });
-require.alias("yyx990803-vue/src/main.js", "test/deps/vue/src/main.js");
-require.alias("yyx990803-vue/src/emitter.js", "test/deps/vue/src/emitter.js");
-require.alias("yyx990803-vue/src/config.js", "test/deps/vue/src/config.js");
-require.alias("yyx990803-vue/src/utils.js", "test/deps/vue/src/utils.js");
-require.alias("yyx990803-vue/src/compiler.js", "test/deps/vue/src/compiler.js");
-require.alias("yyx990803-vue/src/viewmodel.js", "test/deps/vue/src/viewmodel.js");
-require.alias("yyx990803-vue/src/binding.js", "test/deps/vue/src/binding.js");
-require.alias("yyx990803-vue/src/observer.js", "test/deps/vue/src/observer.js");
-require.alias("yyx990803-vue/src/directive.js", "test/deps/vue/src/directive.js");
-require.alias("yyx990803-vue/src/exp-parser.js", "test/deps/vue/src/exp-parser.js");
-require.alias("yyx990803-vue/src/text-parser.js", "test/deps/vue/src/text-parser.js");
-require.alias("yyx990803-vue/src/deps-parser.js", "test/deps/vue/src/deps-parser.js");
-require.alias("yyx990803-vue/src/filters.js", "test/deps/vue/src/filters.js");
-require.alias("yyx990803-vue/src/transition.js", "test/deps/vue/src/transition.js");
-require.alias("yyx990803-vue/src/directives/index.js", "test/deps/vue/src/directives/index.js");
-require.alias("yyx990803-vue/src/directives/if.js", "test/deps/vue/src/directives/if.js");
-require.alias("yyx990803-vue/src/directives/repeat.js", "test/deps/vue/src/directives/repeat.js");
-require.alias("yyx990803-vue/src/directives/on.js", "test/deps/vue/src/directives/on.js");
-require.alias("yyx990803-vue/src/directives/model.js", "test/deps/vue/src/directives/model.js");
-require.alias("yyx990803-vue/src/main.js", "test/deps/vue/index.js");
+require.alias("yyx990803-vue/src/main.js", "vue-component-example/deps/vue/src/main.js");
+require.alias("yyx990803-vue/src/emitter.js", "vue-component-example/deps/vue/src/emitter.js");
+require.alias("yyx990803-vue/src/config.js", "vue-component-example/deps/vue/src/config.js");
+require.alias("yyx990803-vue/src/utils.js", "vue-component-example/deps/vue/src/utils.js");
+require.alias("yyx990803-vue/src/compiler.js", "vue-component-example/deps/vue/src/compiler.js");
+require.alias("yyx990803-vue/src/viewmodel.js", "vue-component-example/deps/vue/src/viewmodel.js");
+require.alias("yyx990803-vue/src/binding.js", "vue-component-example/deps/vue/src/binding.js");
+require.alias("yyx990803-vue/src/observer.js", "vue-component-example/deps/vue/src/observer.js");
+require.alias("yyx990803-vue/src/directive.js", "vue-component-example/deps/vue/src/directive.js");
+require.alias("yyx990803-vue/src/exp-parser.js", "vue-component-example/deps/vue/src/exp-parser.js");
+require.alias("yyx990803-vue/src/text-parser.js", "vue-component-example/deps/vue/src/text-parser.js");
+require.alias("yyx990803-vue/src/deps-parser.js", "vue-component-example/deps/vue/src/deps-parser.js");
+require.alias("yyx990803-vue/src/filters.js", "vue-component-example/deps/vue/src/filters.js");
+require.alias("yyx990803-vue/src/transition.js", "vue-component-example/deps/vue/src/transition.js");
+require.alias("yyx990803-vue/src/batcher.js", "vue-component-example/deps/vue/src/batcher.js");
+require.alias("yyx990803-vue/src/directives/index.js", "vue-component-example/deps/vue/src/directives/index.js");
+require.alias("yyx990803-vue/src/directives/if.js", "vue-component-example/deps/vue/src/directives/if.js");
+require.alias("yyx990803-vue/src/directives/repeat.js", "vue-component-example/deps/vue/src/directives/repeat.js");
+require.alias("yyx990803-vue/src/directives/on.js", "vue-component-example/deps/vue/src/directives/on.js");
+require.alias("yyx990803-vue/src/directives/model.js", "vue-component-example/deps/vue/src/directives/model.js");
+require.alias("yyx990803-vue/src/directives/with.js", "vue-component-example/deps/vue/src/directives/with.js");
+require.alias("yyx990803-vue/src/main.js", "vue-component-example/deps/vue/index.js");
 require.alias("yyx990803-vue/src/main.js", "vue/index.js");
 require.alias("component-emitter/index.js", "yyx990803-vue/deps/emitter/index.js");
 
 require.alias("yyx990803-vue/src/main.js", "yyx990803-vue/index.js");
-require.alias("a/index.js", "test/deps/a/index.js");
+require.alias("a/index.js", "vue-component-example/deps/a/index.js");
 require.alias("a/index.js", "a/index.js");
 
-require.alias("b/index.js", "test/deps/b/index.js");
+require.alias("b/index.js", "vue-component-example/deps/b/index.js");
 require.alias("b/index.js", "b/index.js");
 
-require.alias("test/src/main.js", "test/index.js");if (typeof exports == "object") {
-  module.exports = require("test");
+require.alias("vue-component-example/src/main.js", "vue-component-example/index.js");
+if (typeof exports == "object") {
+  module.exports = require("vue-component-example");
 } else if (typeof define == "function" && define.amd) {
-  define(function(){ return require("test"); });
+  define(function(){ return require("vue-component-example"); });
 } else {
-  this["test"] = require("test");
+  this["vue-component-example"] = require("vue-component-example");
 }})();

@@ -1,9 +1,8 @@
 {
   "name": "vue-component-example",
   "devDependencies": {
-    "grunt-component-build": "~0.4.1",
-    "grunt-contrib-watch": "~0.5.3",
-    "grunt": "~0.4.1",
-    "component-stylus": "~1.1.3"
+    "gulp-component": "~0.1.4",
+    "gulp": "~3.4.0",
+    "proxyquire": "~0.5.2"
   }
 }

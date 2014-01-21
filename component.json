@@ -7,8 +7,7 @@
     "src/filters/reverse.js"
   ],
   "styles": [
-    "src/styles/main.styl",
-    "src/styles/mixins.styl"
+    "src/styles/main.css"
   ],
   "paths": [
     "components",

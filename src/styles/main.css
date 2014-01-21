@@ -1,12 +1,3 @@
-.box.a {
-    font-family: "Helvetica Neue", Arial, sans-serif;
-    font-weight: bold;
-}
-.box.b {
-    font-family: "Adobe Garamond Pro", Georgia, serif;
-    font-style: italic;
-    font-size: 25px;
-}
 body {
     font-family: "Courier New", monospace;
     text-align: center;
