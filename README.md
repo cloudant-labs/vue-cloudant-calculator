@@ -11,7 +11,7 @@ What's more important is that the components in `src/components` are completely 
 To get started, install Gulp and Component globally, then clone this repo and install local dependencies:
 
 ``` bash
-$ npm install -g grunt-cli component
+$ npm install -g gulp component
 $ git clone https://github.com/vuejs/vue-component-example.git
 $ cd vue-component-example
 $ npm install && component install
