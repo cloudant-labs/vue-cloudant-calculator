@@ -2,7 +2,6 @@
   "name": "vue-component-example",
   "devDependencies": {
     "gulp-component": "~0.1.4",
-    "gulp": "~3.4.0",
-    "proxyquire": "~0.5.2"
+    "gulp": "~3.4.0"
   }
 }

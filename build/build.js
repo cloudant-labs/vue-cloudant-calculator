@@ -2041,7 +2041,7 @@ module.exports = {
     ensurePath  : ensurePath,
     convert     : convert,
     copyPaths   : copyPaths,
-    watchArray  : watchArray,
+    watchArray  : watchArray
 }
 });
 require.register("yyx990803-vue/src/directive.js", function(exports, require, module){
