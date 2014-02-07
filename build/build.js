@@ -1,4 +1,5 @@
 ;(function(){
+'use strict';
 
 /**
  * Require the given path.
@@ -2041,7 +2042,7 @@ module.exports = {
     ensurePath  : ensurePath,
     convert     : convert,
     copyPaths   : copyPaths,
-    watchArray  : watchArray
+    watchArray  : watchArray,
 }
 });
 require.register("yyx990803-vue/src/directive.js", function(exports, require, module){
@@ -3486,10 +3487,10 @@ require.alias("b/index.js", "vue-component-example/deps/b/index.js");
 require.alias("b/index.js", "b/index.js");
 
 require.alias("vue-component-example/src/main.js", "vue-component-example/index.js");
-if (typeof exports == "object") {
-  module.exports = require("vue-component-example");
-} else if (typeof define == "function" && define.amd) {
-  define(function(){ return require("vue-component-example"); });
+if (typeof exports == 'object') {
+  module.exports = require('vue-component-example');
+} else if (typeof define == 'function' && define.amd) {
+  define(function(){ return require('vue-component-example'); });
 } else {
-  this["vue-component-example"] = require("vue-component-example");
+  window['vue-component-example'] = require('vue-component-example');
 }})();
