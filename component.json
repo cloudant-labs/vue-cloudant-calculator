@@ -18,7 +18,7 @@
     "b"
   ],
   "dependencies": {
-    "yyx990803/vue": "dev"
+    "yyx990803/vue": "*"
   },
   "remotes": []
 }
