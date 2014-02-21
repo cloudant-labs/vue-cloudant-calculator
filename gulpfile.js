@@ -10,7 +10,5 @@ gulp.task('default', function () {
 })
 
 gulp.task('watch', function () {
-    gulp.watch(['component.json', 'src/**/*'], function () {
-        gulp.run('default')
-    })
+    gulp.watch(['component.json', 'src/**/*'], ['default'])
 })
