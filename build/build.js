@@ -4189,6 +4189,10 @@ new Vue({
     field: require('field')
   },
 
+  filters: {
+    round2decimal: require('./filters/round2decimal')
+  },
+
   data: {
     fields: [{
         label: "Data Volume",
@@ -4214,15 +4218,21 @@ new Vue({
 });
 
 });
+require.register("vue-cloudant-calculator/src/filters/round2decimal.js", function(exports, require, module){
+module.exports = function(value) {
+  return Math.round(value * 100) / 100;
+};
+
+});
 
 
 
 
 require.register("calculator/template.html", function(exports, require, module){
-module.exports = '<div class="ui form">\n  <div class="ui three fields">\n    <div v-repeat="fields" v-component="field" class="field"></div>\n  </div>\n  <div class="ui green segment">\n    <label class="ui header">Grand Total\n      <small class="sub header">per month</small></label>\n    <div class="ui left labeled icon input huge">\n      <i class="dollar icon"></i>\n      <input type="number" readonly="readonly"\n        value="{{grand_total}}" />\n    </div>\n  </div>\n</div>\n';
+module.exports = '<div class="ui form">\n  <div class="ui three fields">\n    <div v-repeat="fields" v-component="field" class="field"></div>\n  </div>\n  <div class="ui green segment">\n    <label class="ui header">Grand Total\n      <small class="sub header">per month</small></label>\n    <div class="ui left labeled icon input huge">\n      <i class="dollar icon"></i>\n      <input type="number" readonly="readonly"\n        value="{{grand_total | round2decimal}}" />\n    </div>\n  </div>\n</div>\n';
 });
 require.register("field/template.html", function(exports, require, module){
-module.exports = '<label class="ui header">{{label}}</label>\n<input v-model="amount" placeholder="{{label}}" type="number" />\n<label>{{description}}</label>\n<div class="ui left labeled icon input">\n  <i class="dollar icon"></i>\n  <input type="number" readonly="readonly"\n    value="{{total}}" />\n</div>\n';
+module.exports = '<label class="ui header">{{label}}</label>\n<input v-model="amount" placeholder="{{label}}" type="number" />\n<label>{{description}}</label>\n<div class="ui left labeled icon input">\n  <i class="dollar icon"></i>\n  <input type="number" readonly="readonly"\n    value="{{total | round2decimal}}" />\n</div>\n';
 });
 require.alias("yyx990803-vue/src/main.js", "vue-cloudant-calculator/deps/vue/src/main.js");
 require.alias("yyx990803-vue/src/emitter.js", "vue-cloudant-calculator/deps/vue/src/emitter.js");

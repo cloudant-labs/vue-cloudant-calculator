@@ -8,6 +8,10 @@ new Vue({
     field: require('field')
   },
 
+  filters: {
+    round2decimal: require('./filters/round2decimal')
+  },
+
   data: {
     fields: [{
         label: "Data Volume",

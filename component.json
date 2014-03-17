@@ -2,7 +2,8 @@
   "name": "vue-cloudant-calculator",
   "main": "src/main.js",
   "scripts": [
-    "src/main.js"
+    "src/main.js",
+    "src/filters/round2decimal.js"
   ],
   "styles": [
     "src/styles/semantic.min.css",
