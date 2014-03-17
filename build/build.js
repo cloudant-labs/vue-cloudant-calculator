@@ -4197,18 +4197,21 @@ new Vue({
     fields: [{
         label: "Data Volume",
         description: "per GB",
+        help: "DB and Index (MapReduce & Full-Text Search) disk usage",
         amount: 15,
         cost: 1,
         per: 1
       }, {
         label: "Heavy HTTP requests",
         description: "per 100",
+        help: "PUT/POST/DELETE/COPY requests",
         amount: 2500,
         cost: 0.015,
         per: 100
       }, {
         label: "Light HTTP requests",
         description: "per 500",
+        help: "GET/HEAD requests",
         amount: 25000,
         cost: 0.015,
         per: 500
@@ -4232,7 +4235,7 @@ require.register("calculator/template.html", function(exports, require, module){
 module.exports = '<div class="ui form">\n  <div class="ui three fields">\n    <div v-repeat="fields" v-component="field" class="field"></div>\n  </div>\n  <div class="ui green segment">\n    <label class="ui header">Grand Total\n      <small class="sub header">per month</small></label>\n    <div class="ui left labeled icon input huge">\n      <i class="dollar icon"></i>\n      <input type="number" readonly="readonly"\n        value="{{grand_total | round2decimal}}" />\n    </div>\n  </div>\n</div>\n';
 });
 require.register("field/template.html", function(exports, require, module){
-module.exports = '<label class="ui header">{{label}}</label>\n<input v-model="amount" placeholder="{{label}}" type="number" />\n<label>{{description}}</label>\n<div class="ui left labeled icon input">\n  <i class="dollar icon"></i>\n  <input type="number" readonly="readonly"\n    value="{{total | round2decimal}}" />\n</div>\n';
+module.exports = '<label class="ui header" title="{{help}}">{{label}}</label>\n<input v-model="amount" placeholder="{{label}}" type="number" />\n<label>{{description}}</label>\n<div class="ui left labeled icon input">\n  <i class="dollar icon"></i>\n  <input type="number" readonly="readonly"\n    value="{{total | round2decimal}}" />\n</div>\n';
 });
 require.alias("yyx990803-vue/src/main.js", "vue-cloudant-calculator/deps/vue/src/main.js");
 require.alias("yyx990803-vue/src/emitter.js", "vue-cloudant-calculator/deps/vue/src/emitter.js");
