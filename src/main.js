@@ -11,7 +11,7 @@ new Vue({
   data: {
     fields: [{
         label: "Data Volume",
-        description: "per GB / month",
+        description: "per GB",
         amount: 15,
         cost: 1,
         per: 1

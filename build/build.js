@@ -4192,7 +4192,7 @@ new Vue({
   data: {
     fields: [{
         label: "Data Volume",
-        description: "per GB / month",
+        description: "per GB",
         amount: 15,
         cost: 1,
         per: 1
@@ -4219,7 +4219,7 @@ new Vue({
 
 
 require.register("calculator/template.html", function(exports, require, module){
-module.exports = '<div class="ui form">\n  <div class="ui three fields">\n    <div v-repeat="fields" v-component="field" class="field"></div>\n  </div>\n  <div class="ui green segment">\n    <label class="ui header">Grand Total</label>\n    <div class="ui left labeled icon input huge">\n      <i class="dollar icon"></i>\n      <input type="number" readonly="readonly"\n        value="{{grand_total}}" />\n    </div>\n  </div>\n</div>\n';
+module.exports = '<div class="ui form">\n  <div class="ui three fields">\n    <div v-repeat="fields" v-component="field" class="field"></div>\n  </div>\n  <div class="ui green segment">\n    <label class="ui header">Grand Total\n      <small class="sub header">per month</small></label>\n    <div class="ui left labeled icon input huge">\n      <i class="dollar icon"></i>\n      <input type="number" readonly="readonly"\n        value="{{grand_total}}" />\n    </div>\n  </div>\n</div>\n';
 });
 require.register("field/template.html", function(exports, require, module){
 module.exports = '<label class="ui header">{{label}}</label>\n<input v-model="amount" placeholder="{{label}}" type="number" />\n<label>{{description}}</label>\n<div class="ui left labeled icon input">\n  <i class="dollar icon"></i>\n  <input type="number" readonly="readonly"\n    value="{{total}}" />\n</div>\n';
