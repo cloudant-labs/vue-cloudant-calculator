@@ -1,21 +1,31 @@
 {
-  "name": "vue-component-example",
+  "name": "vue-cloudant-calculator",
   "main": "src/main.js",
   "scripts": [
-    "src/main.js",
-    "src/directives/flip.js",
-    "src/filters/reverse.js"
+    "src/main.js"
   ],
   "styles": [
+    "src/styles/semantic.min.css",
     "src/styles/main.css"
+  ],
+  "fonts": [
+    "src/fonts/basic.icons.eot",
+    "src/fonts/basic.icons.svg",
+    "src/fonts/basic.icons.ttf",
+    "src/fonts/basic.icons.woff",
+    "src/fonts/icons.eot",
+    "src/fonts/icons.svg",
+    "src/fonts/icons.ttf",
+    "src/fonts/icons.woff",
+    "src/fonts/icons.otf"
   ],
   "paths": [
     "components",
     "src/components"
   ],
   "local": [
-    "a",
-    "b"
+    "calculator",
+    "field"
   ],
   "dependencies": {
     "yyx990803/vue": "*"

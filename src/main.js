@@ -1,18 +1,11 @@
 var Vue = require('vue')
 
-Vue.component('field', {
-  computed: {
-    total: function() {
-      return (this.amount / this.per) * this.cost;
-    }
-  }
-});
-
 new Vue({
   el: 'body',
 
   components: {
-    a: require('a')
+    calculator: require('calculator'),
+    field: require('field')
   },
 
   data: {
@@ -36,17 +29,5 @@ new Vue({
         per: 500
       }
     ]
-  },
-  computed: {
-    grand_total: function() {
-      return this.fields.reduce(function(prev, curr) {
-        if (isNaN(prev)) {
-          return (prev.amount / prev.per) * prev.cost
-            + (curr.amount / curr.per) * curr.cost;
-        } else {
-          return prev + (curr.amount / curr.per) * curr.cost;
-        }
-      });
-    }
   }
 });

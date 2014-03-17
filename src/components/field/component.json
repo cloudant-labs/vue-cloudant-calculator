@@ -1,5 +1,5 @@
 {
-    "name": "a",
+    "name": "field",
     "scripts": ["index.js"],
     "styles": ["style.css"],
     "templates": ["template.html"]

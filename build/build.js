@@ -4149,34 +4149,44 @@ module.exports = {
 
 }
 });
-require.register("a/index.js", function(exports, require, module){
+require.register("calculator/index.js", function(exports, require, module){
 module.exports = {
-    template: require('./template.html')
+  template: require('./template.html'),
+  computed: {
+    grand_total: function() {
+      return this.$parent.fields.reduce(function(prev, curr) {
+        if (isNaN(prev)) {
+          return (prev.amount / prev.per) * prev.cost
+            + (curr.amount / curr.per) * curr.cost;
+        } else {
+          return prev + (curr.amount / curr.per) * curr.cost;
+        }
+      });
+    }
+  }
 }
 
 });
-require.register("b/index.js", function(exports, require, module){
+require.register("field/index.js", function(exports, require, module){
 module.exports = {
-    className: 'b box',
-    template: require('./template.html')
-}
-});
-require.register("vue-component-example/src/main.js", function(exports, require, module){
-var Vue = require('vue')
-
-Vue.component('field', {
   computed: {
     total: function() {
       return (this.amount / this.per) * this.cost;
     }
-  }
+  },
+  template: require('./template.html')
+}
+
 });
+require.register("vue-cloudant-calculator/src/main.js", function(exports, require, module){
+var Vue = require('vue')
 
 new Vue({
   el: 'body',
 
   components: {
-    a: require('a')
+    calculator: require('calculator'),
+    field: require('field')
   },
 
   data: {
@@ -4200,81 +4210,57 @@ new Vue({
         per: 500
       }
     ]
-  },
-  computed: {
-    grand_total: function() {
-      return this.fields.reduce(function(prev, curr) {
-        if (isNaN(prev)) {
-          return (prev.amount / prev.per) * prev.cost
-            + (curr.amount / curr.per) * curr.cost;
-        } else {
-          return prev + (curr.amount / curr.per) * curr.cost;
-        }
-      });
-    }
   }
 });
 
 });
-require.register("vue-component-example/src/directives/flip.js", function(exports, require, module){
-module.exports = function () {
-    this.el.style.transform =
-    this.el.style.mozTransform =
-    this.el.style.webkitTransform = 'scaleX(-1)'
-}
-});
-require.register("vue-component-example/src/filters/reverse.js", function(exports, require, module){
-module.exports = function (value) {
-    return value.toString().split('').reverse().join('')
-}
-});
 
 
 
 
-require.register("a/template.html", function(exports, require, module){
-module.exports = '<div class="ui form">\n  <div class="ui three fields">\n    <div v-repeat="fields" v-component="field" class="field">\n      <label>{{label}}</label>\n      <input v-model="amount" placeholder="{{label}}" type="number" />\n      <label>{{description}}</label>\n      <div class="ui left labeled icon input">\n        <i class="dollar icon"></i>\n        <input type="number" readonly="readonly"\n          value="{{total}}" />\n      </div>\n    </div>\n\n    <label>Grand Total</label>\n    <div class="ui left labeled icon input">\n      <i class="dollar icon"></i>\n      <input type="number" readonly="readonly"\n        value="{{grand_total}}" />\n    </div>\n  </div>\n</div>\n';
+require.register("calculator/template.html", function(exports, require, module){
+module.exports = '<div class="ui form">\n  <div class="ui three fields">\n    <div v-repeat="fields" v-component="field" class="field"></div>\n  </div>\n  <div class="ui green segment">\n    <label class="ui header">Grand Total</label>\n    <div class="ui left labeled icon input huge">\n      <i class="dollar icon"></i>\n      <input type="number" readonly="readonly"\n        value="{{grand_total}}" />\n    </div>\n  </div>\n</div>\n';
 });
-require.register("b/template.html", function(exports, require, module){
-module.exports = '<div>{{msg + " I am component B"}}</div>';
+require.register("field/template.html", function(exports, require, module){
+module.exports = '<label class="ui header">{{label}}</label>\n<input v-model="amount" placeholder="{{label}}" type="number" />\n<label>{{description}}</label>\n<div class="ui left labeled icon input">\n  <i class="dollar icon"></i>\n  <input type="number" readonly="readonly"\n    value="{{total}}" />\n</div>\n';
 });
-require.alias("yyx990803-vue/src/main.js", "vue-component-example/deps/vue/src/main.js");
-require.alias("yyx990803-vue/src/emitter.js", "vue-component-example/deps/vue/src/emitter.js");
-require.alias("yyx990803-vue/src/config.js", "vue-component-example/deps/vue/src/config.js");
-require.alias("yyx990803-vue/src/utils.js", "vue-component-example/deps/vue/src/utils.js");
-require.alias("yyx990803-vue/src/compiler.js", "vue-component-example/deps/vue/src/compiler.js");
-require.alias("yyx990803-vue/src/viewmodel.js", "vue-component-example/deps/vue/src/viewmodel.js");
-require.alias("yyx990803-vue/src/binding.js", "vue-component-example/deps/vue/src/binding.js");
-require.alias("yyx990803-vue/src/observer.js", "vue-component-example/deps/vue/src/observer.js");
-require.alias("yyx990803-vue/src/directive.js", "vue-component-example/deps/vue/src/directive.js");
-require.alias("yyx990803-vue/src/exp-parser.js", "vue-component-example/deps/vue/src/exp-parser.js");
-require.alias("yyx990803-vue/src/text-parser.js", "vue-component-example/deps/vue/src/text-parser.js");
-require.alias("yyx990803-vue/src/deps-parser.js", "vue-component-example/deps/vue/src/deps-parser.js");
-require.alias("yyx990803-vue/src/filters.js", "vue-component-example/deps/vue/src/filters.js");
-require.alias("yyx990803-vue/src/transition.js", "vue-component-example/deps/vue/src/transition.js");
-require.alias("yyx990803-vue/src/batcher.js", "vue-component-example/deps/vue/src/batcher.js");
-require.alias("yyx990803-vue/src/directives/index.js", "vue-component-example/deps/vue/src/directives/index.js");
-require.alias("yyx990803-vue/src/directives/if.js", "vue-component-example/deps/vue/src/directives/if.js");
-require.alias("yyx990803-vue/src/directives/repeat.js", "vue-component-example/deps/vue/src/directives/repeat.js");
-require.alias("yyx990803-vue/src/directives/on.js", "vue-component-example/deps/vue/src/directives/on.js");
-require.alias("yyx990803-vue/src/directives/model.js", "vue-component-example/deps/vue/src/directives/model.js");
-require.alias("yyx990803-vue/src/directives/with.js", "vue-component-example/deps/vue/src/directives/with.js");
-require.alias("yyx990803-vue/src/directives/html.js", "vue-component-example/deps/vue/src/directives/html.js");
-require.alias("yyx990803-vue/src/directives/style.js", "vue-component-example/deps/vue/src/directives/style.js");
-require.alias("yyx990803-vue/src/main.js", "vue-component-example/deps/vue/index.js");
+require.alias("yyx990803-vue/src/main.js", "vue-cloudant-calculator/deps/vue/src/main.js");
+require.alias("yyx990803-vue/src/emitter.js", "vue-cloudant-calculator/deps/vue/src/emitter.js");
+require.alias("yyx990803-vue/src/config.js", "vue-cloudant-calculator/deps/vue/src/config.js");
+require.alias("yyx990803-vue/src/utils.js", "vue-cloudant-calculator/deps/vue/src/utils.js");
+require.alias("yyx990803-vue/src/compiler.js", "vue-cloudant-calculator/deps/vue/src/compiler.js");
+require.alias("yyx990803-vue/src/viewmodel.js", "vue-cloudant-calculator/deps/vue/src/viewmodel.js");
+require.alias("yyx990803-vue/src/binding.js", "vue-cloudant-calculator/deps/vue/src/binding.js");
+require.alias("yyx990803-vue/src/observer.js", "vue-cloudant-calculator/deps/vue/src/observer.js");
+require.alias("yyx990803-vue/src/directive.js", "vue-cloudant-calculator/deps/vue/src/directive.js");
+require.alias("yyx990803-vue/src/exp-parser.js", "vue-cloudant-calculator/deps/vue/src/exp-parser.js");
+require.alias("yyx990803-vue/src/text-parser.js", "vue-cloudant-calculator/deps/vue/src/text-parser.js");
+require.alias("yyx990803-vue/src/deps-parser.js", "vue-cloudant-calculator/deps/vue/src/deps-parser.js");
+require.alias("yyx990803-vue/src/filters.js", "vue-cloudant-calculator/deps/vue/src/filters.js");
+require.alias("yyx990803-vue/src/transition.js", "vue-cloudant-calculator/deps/vue/src/transition.js");
+require.alias("yyx990803-vue/src/batcher.js", "vue-cloudant-calculator/deps/vue/src/batcher.js");
+require.alias("yyx990803-vue/src/directives/index.js", "vue-cloudant-calculator/deps/vue/src/directives/index.js");
+require.alias("yyx990803-vue/src/directives/if.js", "vue-cloudant-calculator/deps/vue/src/directives/if.js");
+require.alias("yyx990803-vue/src/directives/repeat.js", "vue-cloudant-calculator/deps/vue/src/directives/repeat.js");
+require.alias("yyx990803-vue/src/directives/on.js", "vue-cloudant-calculator/deps/vue/src/directives/on.js");
+require.alias("yyx990803-vue/src/directives/model.js", "vue-cloudant-calculator/deps/vue/src/directives/model.js");
+require.alias("yyx990803-vue/src/directives/with.js", "vue-cloudant-calculator/deps/vue/src/directives/with.js");
+require.alias("yyx990803-vue/src/directives/html.js", "vue-cloudant-calculator/deps/vue/src/directives/html.js");
+require.alias("yyx990803-vue/src/directives/style.js", "vue-cloudant-calculator/deps/vue/src/directives/style.js");
+require.alias("yyx990803-vue/src/main.js", "vue-cloudant-calculator/deps/vue/index.js");
 require.alias("yyx990803-vue/src/main.js", "vue/index.js");
 require.alias("yyx990803-vue/src/main.js", "yyx990803-vue/index.js");
-require.alias("a/index.js", "vue-component-example/deps/a/index.js");
-require.alias("a/index.js", "a/index.js");
+require.alias("calculator/index.js", "vue-cloudant-calculator/deps/calculator/index.js");
+require.alias("calculator/index.js", "calculator/index.js");
 
-require.alias("b/index.js", "vue-component-example/deps/b/index.js");
-require.alias("b/index.js", "b/index.js");
+require.alias("field/index.js", "vue-cloudant-calculator/deps/field/index.js");
+require.alias("field/index.js", "field/index.js");
 
-require.alias("vue-component-example/src/main.js", "vue-component-example/index.js");
+require.alias("vue-cloudant-calculator/src/main.js", "vue-cloudant-calculator/index.js");
 if (typeof exports == 'object') {
-  module.exports = require('vue-component-example');
+  module.exports = require('vue-cloudant-calculator');
 } else if (typeof define == 'function' && define.amd) {
-  define(function(){ return require('vue-component-example'); });
+  define(function(){ return require('vue-cloudant-calculator'); });
 } else {
-  window['vue-component-example'] = require('vue-component-example');
+  window['vue-cloudant-calculator'] = require('vue-cloudant-calculator');
 }})();

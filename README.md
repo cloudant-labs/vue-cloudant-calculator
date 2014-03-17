@@ -1,3 +1,9 @@
+# Cloudant Cost Calculator
+
+Nothing more than math + the pricing table + VueJS goodness.
+
+Read more about Vue below.
+
 # Vue + Component Example
 
 A simple setup using [Gulp](http://gulpjs.com), [Component](http://github.com/component/component) together with [Vue.js](http://vuejs.org) for modular UI development.

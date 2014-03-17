@@ -1,13 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title></title>
+        <title>Cost Calcuatlor - Cloudant, an IBM Company</title>
         <meta charset="utf-8">
-        <link rel="stylesheet" type="text/css" href="build/semantic.min.css">
+        <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,900,300italic,400italic,600italic,900italic' rel='stylesheet' type='text/css'>
         <link rel="stylesheet" type="text/css" href="build/build.css">
     </head>
-    <body>
-        <div v-component="a"></div>
-        <script src="build/build.js"></script>
+    <body class="main container">
+      <h1 class="ui center aligned header">
+        <img src="images/cloudant_logo_retina.png" alt="Cloudant, an IBM Company" />
+      </h1>
+      <div class="ui grid center aligned">
+        <div class="ten wide column">
+          <div class="ui blue segment center aligned" v-component="calculator"></div>
+        </div>
+      </div>
+      <script src="build/build.js"></script>
     </body>
 </html>
