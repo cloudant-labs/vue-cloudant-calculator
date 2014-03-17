@@ -1,0 +1,15 @@
+VueJS-based Cloudant Cost Calculator
+Copyright 2014 Cloudant, an IBM Company, Inc.
+
+This product includes software developed at
+Cloudant, an IBM Company (http://www.cloudant.com/).
+
+This product also includes the following third-party components:
+
+ * Original example code (https://github.com/vuejs/vue-component-example/)
+
+   Copyright 2013-2014, Yuxi Evan You <yyx990803@gmail.com>
+
+ * Semantic-UI (http://semantic-ui.com/)
+
+   Copyright 2013-2014, Jack Lukic <jacklukic@gmail.com>
