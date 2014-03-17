@@ -1,1 +1,21 @@
-<div>{{msg + " I'm component A"}}</div>
+<div class="ui form">
+  <div class="ui three fields">
+    <div v-repeat="fields" v-component="field" class="field">
+      <label>{{label}}</label>
+      <input v-model="amount" placeholder="{{label}}" type="number" />
+      <label>{{description}}</label>
+      <div class="ui left labeled icon input">
+        <i class="dollar icon"></i>
+        <input type="number" readonly="readonly"
+          value="{{total}}" />
+      </div>
+    </div>
+
+    <label>Grand Total</label>
+    <div class="ui left labeled icon input">
+      <i class="dollar icon"></i>
+      <input type="number" readonly="readonly"
+        value="{{grand_total}}" />
+    </div>
+  </div>
+</div>
