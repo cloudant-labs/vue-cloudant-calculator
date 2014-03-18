@@ -20,6 +20,9 @@
     "src/fonts/icons.woff",
     "src/fonts/icons.otf"
   ],
+  "images": [
+    "src/images/cloudant_logo_retina.png"
+  ],
   "paths": [
     "components",
     "src/components"
